@@ -51,6 +51,14 @@ def init_db():
     """)
     
     conn.commit()
+    
+    # Criar utilizador padrão 'catarina' com senha 'admin123' se não existir
+    cursor.execute("SELECT id FROM users WHERE username = 'catarina'")
+    if not cursor.fetchone():
+        hashed_default = bcrypt.hashpw('admin123'.encode('utf-8'), bcrypt.gensalt())
+        cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", ('catarina', hashed_default))
+        conn.commit()
+        
     conn.close()
 
 init_db()
@@ -86,10 +94,10 @@ if "user_id" not in st.session_state:
 if "username" not in st.session_state:
     st.session_state.username = ""
 
-# Ecrã de Autenticação (Apenas Login)
+# Ecrã de Autenticação (Login)
 if st.session_state.user_id is None:
     st.title("💼 Portal de Gestão de Carreira")
-    st.subheader("Faça login com a sua conta atribuída para aceder ao portal.")
+    st.subheader("Faça login para aceder às suas candidaturas e currículos.")
     
     st.markdown("### Aceder à Conta")
     login_user_input = st.text_input("Utilizador", key="login_user")
@@ -106,7 +114,7 @@ if st.session_state.user_id is None:
             st.error("Utilizador ou palavra-passe incorretos.")
 
 else:
-    # Barra Lateral de Navegação
+    # Barra Lateral de Navegação (Layout Anterior)
     st.sidebar.title(f"Olá, {st.session_state.username}!")
     menu = st.sidebar.radio("Navegação", ["Gestão de Candidaturas & LinkedIn", "Leitor e Analisador de Currículo (PDF)", "Segurança (Alterar Palavra-passe)"])
     
@@ -226,7 +234,6 @@ else:
                 elif nova_senha != confirma_senha:
                     st.error("A nova palavra-passe e a confirmação não coincidem.")
                 else:
-                    # Validar senha atual
                     conn = sqlite3.connect("career_portal.db")
                     cursor = conn.cursor()
                     cursor.execute("SELECT password FROM users WHERE id = ?", (st.session_state.user_id,))
