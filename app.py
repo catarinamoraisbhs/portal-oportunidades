@@ -128,7 +128,7 @@ else:
         st.session_state.username = ""
         st.rerun()
         
-    # Módulo Novo: Buscar Vagas & LinkedIn (Foco Principal)
+    # Módulo Novo: Buscar Vagas & LinkedIn
     if menu == "🔍 Buscar Vagas & LinkedIn":
         st.title("🔍 Pesquisa e Acesso Direto a Vagas no LinkedIn")
         st.markdown("Encontre novas oportunidades profissionais ou aceda rapidamente a publicações de recrutamento utilizando o ID do post.")
@@ -143,7 +143,7 @@ else:
         if btn_pesquisar and termo_pesquisa:
             termo_formatado = termo_pesquisa.replace(" ", "%20")
             url_pesquisa_linkedin = f"https://www.linkedin.com/search/results/content/?keywords={termo_formatado}"
-            st.success(Link gerado com sucesso para a pesquisa de: **{termo_pesquisa}**)
+            st.success(f"Link gerado com sucesso para a pesquisa de: **{termo_pesquisa}**")
             st.markdown(f"🔗 [Clique aqui para abrir os resultados da pesquisa no LinkedIn]({url_pesquisa_linkedin})", unsafe_allow_html=True)
             
         st.divider()
