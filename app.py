@@ -56,7 +56,7 @@ def init_db():
     cursor.execute("SELECT COUNT(*) FROM usuarios")
     if cursor.fetchone()[0] == 0:
         default_user = "catarina"
-        default_pass = make_hash("00252318@Ca")
+        default_pass = make_hash("admin123")
         cursor.execute("INSERT INTO usuarios (username, password, primeiro_acesso) VALUES (?, ?, ?)", 
                        (default_user, default_pass, 1))
     
