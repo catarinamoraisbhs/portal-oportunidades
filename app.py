@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import sqlite3
-import hashlib
+import bcrypt
 from pypdf import PdfReader
 
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
@@ -11,14 +11,16 @@ st.set_page_config(
     layout="wide"
 )
 
-DB_NAME = "portal_oportunidades_v7.db"
+DB_NAME = "portal_oportunidades_v8.db"
 
-# --- 2. FUNÇÕES DE SEGURANÇA E BASE DE DADOS ---
+# --- 2. FUNÇÕES DE SEGURANÇA (BCRYPT) E BASE DE DADOS ---
 def make_hash(password):
-    return hashlib.sha256(str.encode(password)).hexdigest()
+    # Gera um salt seguro e faz o hash da password
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
 def check_hash(password, hashed_text):
-    return make_hash(password) == hashed_text
+    # Verifica se a password corresponde ao hash armazenado
+    return bcrypt.checkpw(password.encode('utf-8'), hashed_text.encode('utf-8'))
 
 def init_db():
     conn = sqlite3.connect(DB_NAME)
@@ -47,6 +49,7 @@ def init_db():
     
     conn.commit()
     
+    # Criar utilizador padrão se a tabela estiver vazia
     cursor.execute("SELECT COUNT(*) FROM usuarios")
     if cursor.fetchone()[0] == 0:
         default_user = "catarina"
