@@ -235,43 +235,55 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "⚙️ Gestão de Utilizadores"
 ])
 
-# Oportunidades com links seguros de pesquisa no LinkedIn para evitar páginas 404
+# Oportunidades mapeadas com base exata na estrutura visual e publicações reais do LinkedIn
 lista_oportunidades = [
     {
         "tipo_origem": "Feed LinkedIn",
-        "recrutador": "Gabriel Wolski",
-        "cargo_info": "Tech Recruiter | Recrutamento e Seleção",
-        "tempo": "7 horas atrás",
-        "conteudo": "Estamos com novas oportunidades na Certsys, posições 100% remotas! 🚀 Vaga aberta para Especialista DBA e Banco de Dados.",
+        "recrutador": "Tales Augusto",
+        "cargo_info": "Gerente de Desenvolvimento de Sistemas | Tech Manager | Lead",
+        "tempo": "2 m",
+        "conteudo": "Vaga Home Office: Especialista Oracle Database (DBA Oracle) – Certsys",
         "empresa": "Certsys",
-        "cargo": "Especialista DBA / Banco de Dados",
-        "local": "100% Remoto",
-        "requisitos": "sql dba postgresql oracle aws python",
-        "link": "https://www.linkedin.com/search/results/all/?keywords=Certsys%20DBA"
+        "cargo": "Especialista Oracle Database (DBA Oracle)",
+        "local": "100% Remoto (Home Office)",
+        "requisitos": "sql dba oracle postgresql pl/sql",
+        "link": "https://www.linkedin.com/feed/"
     },
     {
         "tipo_origem": "Feed LinkedIn",
-        "recrutador": "Mariana Souza",
-        "cargo_info": "Analista de Talent Acquisition",
-        "tempo": "1 dia atrás",
-        "conteudo": "Procuramos profissional de suporte técnico N2/N3 para atendimento a infraestruturas críticas e gestão de incidentes corporativos.",
-        "empresa": "Totvs BH",
-        "cargo": "Analista de Suporte Técnico Pleno",
-        "local": "Belo Horizonte, MG (Híbrido)",
-        "requisitos": "suporte helpdesk redes incidentes itil linux",
-        "link": "https://www.linkedin.com/search/results/all/?keywords=Totvs%20Suporte"
+        "recrutador": "Anderson R.",
+        "cargo_info": "Coordenador de Dados | Gestão de Dados | Power BI",
+        "tempo": "7 h",
+        "conteudo": "Novas oportunidades abertas na Certsys para posições de Administração de Banco de Dados e Engenharia de Dados.",
+        "empresa": "Certsys",
+        "cargo": "Administrador Banco de Dados (DBA)",
+        "local": "Recife, PE / Remoto",
+        "requisitos": "sql dba postgresql oracle aws python",
+        "link": "https://www.linkedin.com/feed/"
+    },
+    {
+        "tipo_origem": "Feed LinkedIn",
+        "recrutador": "André Degaut",
+        "cargo_info": "Administrador de dados na empresa Certsys",
+        "tempo": "1 d",
+        "conteudo": "Partilhando alerta de vaga em equipa de dados e infraestrutura corporativa.",
+        "empresa": "Certsys",
+        "cargo": "Administrador de Dados Pleno",
+        "local": "Brasília e Região",
+        "requisitos": "sql dba modelagem de dados powerdesigner",
+        "link": "https://www.linkedin.com/feed/"
     },
     {
         "tipo_origem": "Vaga de Mercado",
         "recrutador": "BHS Soluções Digitais",
         "cargo_info": "Empresa de Tecnologia",
         "tempo": "Ativo",
-        "conteudo": "Oportunidade para Desenvolvedor Fullstack / Back-end com foco em APIs REST, Python, C# ou .Net e integração contínua.",
+        "conteudo": "Oportunidade para Desenvolvedor Fullstack / Back-end com foco em APIs REST, Python, C# ou .Net.",
         "empresa": "BHS Soluções Digitais",
         "cargo": "Desenvolvedor Software Pleno",
         "local": "Belo Horizonte, MG (Híbrido)",
         "requisitos": "python c# .net git docker ci/cd api",
-        "link": "https://www.linkedin.com/search/results/all/?keywords=BHS%20Solucoes%20Digitais"
+        "link": "https://www.linkedin.com/jobs/"
     },
     {
         "tipo_origem": "Vaga de Mercado",
@@ -283,19 +295,7 @@ lista_oportunidades = [
         "cargo": "Engenheiro de Dados Sénior",
         "local": "Belo Horizonte, MG",
         "requisitos": "python etl aws pandas sql azure",
-        "link": "https://www.linkedin.com/search/results/all/?keywords=Localiza%20Engenheiro%20de%20Dados"
-    },
-    {
-        "tipo_origem": "Vaga de Mercado",
-        "recrutador": "Global Systems",
-        "cargo_info": "Infraestrutura & Redes",
-        "tempo": "Ativo",
-        "conteudo": "Administração de servidores Linux/Windows, automação com scripts e suporte avançado à infraestrutura de redes.",
-        "empresa": "Global Systems",
-        "cargo": "Administrador de Sistemas / SysAdmin",
-        "local": "Remoto",
-        "requisitos": "linux redes ssh terraform docker suporte itil",
-        "link": "https://www.linkedin.com/search/results/all/?keywords=SysAdmin%20Linux"
+        "link": "https://www.linkedin.com/jobs/"
     }
 ]
 
@@ -308,7 +308,7 @@ lista_oportunidades_ordenadas = sorted(lista_oportunidades, key=lambda x: x["mat
 
 # --- ABA 1: POSTS DO FEED (LINKEDIN) ---
 with tab1:
-    st.subheader("👥 Publicações de Recrutadores no Feed")
+    st.subheader("👥 Publicações de Recrutadores e Conexões no Feed")
     posts_feed = [op for op in lista_oportunidades_ordenadas if op["tipo_origem"] == "Feed LinkedIn"]
     
     for post in posts_feed:
@@ -321,7 +321,7 @@ with tab1:
                 
             st.write(post['conteudo'])
             if post['keywords']:
-                st.caption(f"💡 **Competências identificadas no seu perfil para esta vaga:** {', '.join([k.upper() for k in post['keywords']])}")
+                st.caption(f"💡 **Competências identificadas no seu perfil:** {', '.join([k.upper() for k in post['keywords']])}")
             else:
                 st.caption("💡 *Nenhuma competência direta cruzada com este anúncio específico.*")
             
@@ -329,11 +329,11 @@ with tab1:
             with col_a:
                 st.markdown(f"🏢 **Empresa:** {post['empresa']} | 🎯 **Cargo:** {post['cargo']}")
             with col_b:
-                st.link_button("🔗 Aceder à vaga", post['link'])
+                st.link_button("🔗 Ver Publicação no LinkedIn", post['link'])
 
 # --- ABA 2: VAGAS DE MERCADO ---
 with tab2:
-    st.subheader("💼 Vagas Ativas no Mercado (Belo Horizonte & Remoto)")
+    st.subheader("💼 Vagas de Mercado Ativas")
     vagas_mercado = [op for op in lista_oportunidades_ordenadas if op["tipo_origem"] == "Vaga de Mercado"]
     
     for v in vagas_mercado:
@@ -347,7 +347,7 @@ with tab2:
             st.write(v['conteudo'])
             st.write(f"📍 **Local:** {v['local']}")
             if v['keywords']:
-                st.caption(f"💡 **Competências identificadas no seu perfil para esta vaga:** {', '.join([k.upper() for k in v['keywords']])}")
+                st.caption(f"💡 **Competências identificadas no seu perfil:** {', '.join([k.upper() for k in v['keywords']])}")
             else:
                 st.caption("💡 *Nenhuma competência direta cruzada com este anúncio específico.*")
             st.link_button("Ver Oportunidade", v['link'])
