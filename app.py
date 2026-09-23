@@ -114,19 +114,59 @@ if st.session_state.user_id is None:
             st.error("Utilizador ou palavra-passe incorretos.")
 
 else:
-    # Barra Lateral de Navegação (Layout Anterior)
+    # Barra Lateral de Navegação
     st.sidebar.title(f"Olá, {st.session_state.username}!")
-    menu = st.sidebar.radio("Navegação", ["Gestão de Candidaturas & LinkedIn", "Leitor e Analisador de Currículo (PDF)", "Segurança (Alterar Palavra-passe)"])
+    menu = st.sidebar.radio("Navegação", [
+        "🔍 Buscar Vagas & LinkedIn", 
+        "🎯 Gestão de Candidaturas", 
+        "📄 Leitor e Analisador de Currículo (PDF)", 
+        "🔒 Segurança (Alterar Palavra-passe)"
+    ])
     
     if st.sidebar.button("Terminar Sessão"):
         st.session_state.user_id = None
         st.session_state.username = ""
         st.rerun()
         
-    # Módulo 1: Gestão de Candidaturas e Links do LinkedIn
-    if menu == "Gestão de Candidaturas & LinkedIn":
+    # Módulo Novo: Buscar Vagas & LinkedIn (Foco Principal)
+    if menu == "🔍 Buscar Vagas & LinkedIn":
+        st.title("🔍 Pesquisa e Acesso Direto a Vagas no LinkedIn")
+        st.markdown("Encontre novas oportunidades profissionais ou aceda rapidamente a publicações de recrutamento utilizando o ID do post.")
+        
+        col_busca1, col_busca2 = st.columns([2, 1])
+        with col_busca1:
+            termo_pesquisa = st.text_input("Cargo, Tecnologia ou Palavra-chave para a Vaga", placeholder="Ex: DBA, Engenharia de Dados, Python...")
+        with col_busca2:
+            st.markdown("<br>", unsafe_allow_html=True)
+            btn_pesquisar = st.button("Pesquisar Vagas no LinkedIn")
+            
+        if btn_pesquisar and termo_pesquisa:
+            termo_formatado = termo_pesquisa.replace(" ", "%20")
+            url_pesquisa_linkedin = f"https://www.linkedin.com/search/results/content/?keywords={termo_formatado}"
+            st.success(Link gerado com sucesso para a pesquisa de: **{termo_pesquisa}**)
+            st.markdown(f"🔗 [Clique aqui para abrir os resultados da pesquisa no LinkedIn]({url_pesquisa_linkedin})", unsafe_allow_html=True)
+            
+        st.divider()
+        st.subheader("Acesso Direto por ID de Publicação (Activity URN)")
+        st.markdown("Se tem o link direto ou o ID numérico de uma publicação de vaga no LinkedIn, insira-o abaixo para abrir o post imediatamente:")
+        
+        col_id1, col_id2 = st.columns([2, 1])
+        with col_id1:
+            input_activity_id = st.text_input("ID do Post do LinkedIn (ex: 7123456789012345678)")
+        with col_id2:
+            st.markdown("<br>", unsafe_allow_html=True)
+            btn_abrir_post = st.button("Abrir Publicação")
+            
+        if btn_abrir_post and input_activity_id:
+            link_direto = f"https://www.linkedin.com/feed/update/urn:li:activity:{input_activity_id.strip()}"
+            st.markdown(f"🚀 **[Aceder diretamente ao Post da Vaga]({link_direto})**", unsafe_allow_html=True)
+        elif btn_abrir_post:
+            st.warning("Insira um ID de post válido.")
+
+    # Módulo 1: Gestão de Candidaturas
+    elif menu == "🎯 Gestão de Candidaturas":
         st.title("🎯 Gestão de Candidaturas e Redes")
-        st.markdown("Registe as suas oportunidades profissionais e aceda diretamente aos posts específicos do LinkedIn.")
+        st.markdown("Registe as suas oportunidades profissionais e acompanhe os seus processos seletivos.")
         
         with st.form("form_candidatura"):
             col1, col2 = st.columns(2)
@@ -174,7 +214,7 @@ else:
             st.info("Ainda não tem candidaturas registadas.")
 
     # Módulo 2: Leitor de Currículos em PDF
-    elif menu == "Leitor e Analisador de Currículo (PDF)":
+    elif menu == "📄 Leitor e Analisador de Currículo (PDF)":
         st.title("📄 Análise e Gestão de Currículo")
         st.markdown("Carregue o seu currículo em formato PDF para extrair o conteúdo e guardar no seu perfil.")
         
@@ -217,7 +257,7 @@ else:
             st.info("Ainda não guardou nenhum currículo.")
 
     # Módulo 3: Segurança (Alteração de Palavra-passe)
-    elif menu == "Segurança (Alterar Palavra-passe)":
+    elif menu == "🔒 Segurança (Alterar Palavra-passe)":
         st.title("🔒 Alterar Palavra-passe")
         st.markdown("Atualize as suas credenciais de acesso à conta.")
         
