@@ -1,173 +1,249 @@
 import streamlit as st
-import sqlite3
-import os
-import re
 import pandas as pd
+import sqlite3
+import hashlib
 from pypdf import PdfReader
 
-st.set_page_config(page_title="Portal Definitivo - Vagas & Posts do LinkedIn", page_icon="🎯", layout="wide")
+# --- 1. CONFIGURAÇÃO DA PÁGINA ---
+st.set_page_config(
+    page_title="Portal de Oportunidades: DBA & Dados",
+    page_icon="🎯",
+    layout="wide"
+)
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_NAME = os.path.join(BASE_DIR, "portal_oportunidades_v5.db")
+DB_NAME = "portal_oportunidades_v5.db"
+
+# --- 2. FUNÇÕES DE SEGURANÇA E BASE DE DADOS ---
+def make_hash(password):
+    """Gera um hash seguro da palavra-passe."""
+    return hashlib.sha256(str.encode(password)).hexdigest()
+
+def check_hash(password, hashed_text):
+    """Verifica se a palavra-passe corresponde ao hash guardado."""
+    return make_hash(password) == hashed_text
 
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
-    cursor.execute("""
+    
+    # Tabela de candidaturas
+    cursor.execute('''
         CREATE TABLE IF NOT EXISTS candidaturas (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, 
-            data TEXT, 
-            empresa TEXT, 
-            cargo TEXT, 
-            email TEXT
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            empresa TEXT,
+            cargo TEXT,
+            status TEXT,
+            data TEXT,
+            observacoes TEXT
         )
-    """)
+    ''')
+    
+    # Tabela de utilizadores (para login seguro)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS usuarios (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE,
+            password TEXT
+        )
+    ''')
+    
+    # Criar um utilizador admin padrão se a tabela estiver vazia (Catarina / admin123)
+    cursor.execute("SELECT COUNT(*) FROM usuarios")
+    if cursor.fetchone()[0] == 0:
+        default_user = "catarina"
+        default_pass = make_hash("00252318@Ca") # Podes alterar aqui a senha inicial se desejares
+        cursor.execute("INSERT INTO usuarios (username, password) VALUES (?, ?)", (default_user, default_pass))
+    
     conn.commit()
     conn.close()
 
 init_db()
 
-st.title("🎯 Portal de Oportunidades: Vagas & Feed do LinkedIn")
-st.markdown("Monitorização combinada de posts de recrutadores no feed e vagas ativas no mercado de tecnologia.")
+# --- 3. SISTEMA DE LOGIN COM BASE DE DADOS ---
+if "autenticado" not in st.session_state:
+    st.session_state["autenticado"] = False
+    st.session_state["username"] = ""
 
-st.sidebar.header("📄 Carregar Currículo PDF")
-uploaded_file = st.sidebar.file_uploader("Escolha o seu PDF", type=["pdf"])
+if not st.session_state["autenticado"]:
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: #FF4B4B;'>🎯 Portal de Oportunidades</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #888;'>Painel Restrito de Gestão de Carreira (DBA / Engenharia de Dados)</p>", unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1, 1.5, 1])
+    with col2:
+        with st.container(border=True):
+            st.markdown("### 🔒 Acesso Restrito (Base de Dados)")
+            user_input = st.text_input("Utilizador")
+            senha_input = st.text_input("Palavra-passe", type="password")
+            
+            if st.button("Entrar no Portal", use_container_width=True, type="primary"):
+                if user_input and senha_input:
+                    conn = sqlite3.connect(DB_NAME)
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT password FROM usuarios WHERE username = ?", (user_input,))
+                    resultado = cursor.fetchone()
+                    conn.close()
+                    
+                    if resultado and check_hash(senha_input, resultado[0]):
+                        st.session_state["autenticado"] = True
+                        st.session_state["username"] = user_input
+                        st.rerun()
+                    else:
+                        st.error("❌ Utilizador ou palavra-passe incorretos!")
+                else:
+                    st.warning("⚠️ Por favor, preencha todos os campos.")
+    
+    st.stop()  # Impede que o resto da aplicação seja carregado sem autenticação
 
-texto_cv = ""
-if uploaded_file is not None:
+# --- 4. FUNÇÕES DE SUPORTE (PDF E MATCH) ---
+def extrair_texto_pdf(pdf_file):
     try:
-        reader = PdfReader(uploaded_file)
+        reader = PdfReader(pdf_file)
+        texto = ""
         for page in reader.pages:
-            texto_cv += page.extract_text() or ""
-        st.sidebar.success("✅ Currículo carregado com sucesso!")
+            texto += page.extract_text() or ""
+        return texto
     except Exception as e:
-        st.sidebar.error(f"Erro ao ler PDF: {e}")
+        st.error(f"Erro ao ler PDF: {e}")
+        return ""
 
-# Definição das abas solicitadas
-aba1, aba2, aba3, aba4 = st.tabs([
+def calcular_match(texto_curriculo, requisitos_vaga):
+    if not texto_curriculo:
+        return 50 # Match padrão se não houver currículo carregado
+    
+    texto_curriculo_lower = texto_curriculo.lower()
+    palavras_chave = ["sql", "python", "dba", "etl", "aws", "azure", "postgres", "mysql", "oracle", "power bi", "pandas", "git", "linux", "docker"]
+    
+    encontradas = sum(1 for p in palavras_chave if p in texto_curriculo_lower and p in requisitos_vaga.lower())
+    match_base = 60 + (encontradas * 7)
+    return min(match_base, 98) # Limita a 98% máximo
+
+# --- 5. BARRA LATERAL (UPLOAD DE CURRÍCULO & UTILIZADOR) ---
+with st.sidebar:
+    st.markdown(f"👤 **Sessão iniciada:** `{st.session_state['username']}`")
+    st.markdown("---")
+    st.markdown("## 📄 Carregar Currículo PDF")
+    uploaded_file = st.file_uploader("Escolha o seu PDF", type=["pdf"])
+    
+    texto_curriculo = ""
+    if uploaded_file is not None:
+        texto_curriculo = extrair_texto_pdf(uploaded_file)
+        st.success("Currículo carregado com sucesso!")
+    
+    st.markdown("---")
+    if st.button("🚪 Terminar Sessão"):
+        st.session_state["autenticado"] = False
+        st.session_state["username"] = ""
+        st.rerun()
+
+# --- 6. CORPO PRINCIPAL DO PORTAL ---
+st.title("🎯 Portal de Oportunidades: Vagas & Feed do LinkedIn")
+st.markdown("Monitorização combinada de posts de recrutadores no feed e vagas ativas no mercado de tecnologia em Belo Horizonte e Remoto.")
+
+tab1, tab2, tab3, tab4 = st.tabs([
     "📢 Posts do Feed (LinkedIn)", 
     "💼 Vagas de Mercado (BH & Remoto)", 
-    "📋 Registar Candidatura", 
-    "📊 Histórico"
+    "📝 Registar Candidatura", 
+    "📊 Histórico & Relatórios"
 ])
 
-with aba1:
+# --- ABA 1: POSTS DO FEED (LINKEDIN) ---
+with tab1:
     st.subheader("👥 Publicações de Recrutadores no Feed")
-    st.markdown("Posts em formato de feed reais com extração automática e cálculo de match.")
-
+    st.markdown("Posts em formato de feed reais com extração automática e cálculo de match com o seu perfil.")
+    
     posts_feed = [
         {
-            "autor": "Gabriel Wolski",
-            "cargo_autor": "Tech Recruiter | Recrutamento e Seleção (R&S)",
-            "tempo": "7 horas atrás • 🌐",
-            "texto": "Estamos com novas oportunidades na Certsys, todas as posições 100% remota! 🚀\n\nSe você estava esperando um sinal para dar aquele próximo passo na carreira... talvez seja esse! 👀 Vaga aberta para Especialista DBA e Banco de Dados.",
+            "recrutador": "Gabriel Wolski",
+            "cargo_info": "Tech Recruiter | Recrutamento e Seleção (R&S)",
+            "tempo": "7 horas atrás",
+            "conteudo": "Estamos com novas oportunidades na Certsys, todas as posições 100% remota! 🚀\n\nSe você estava esperando um sinal para dar aquele próximo passo na carreira... talvez seja esse!  👀 Vaga aberta para Especialista DBA e Banco de Dados.",
             "empresa": "Certsys",
             "cargo": "Especialista DBA / Banco de Dados",
-            "link": "https://certsys.gupy.io",
-            "tags": ["dba", "sql", "database", "postgres", "sql server"]
+            "requisitos": "sql dba postgresql oracle aws",
+            "link": "https://www.linkedin.com"
         },
         {
-            "autor": "Hilda Barbosa",
-            "cargo_autor": "Divulgo Vagas Como Gesto de Solidariedade",
-            "tempo": "1 dia atrás • 🌐",
-            "texto": "#COMPARTILHANDO 👤 RECÉM-PUBLICADA 📌\n\nVaga Na Certsys - Administrador de Dados / Modelador de Dados (PowerDesigner) 💻 Modelo de Trabalho Híbrido / Remoto.",
+            "recrutador": "Hilda Barbosa",
+            "cargo_info": "Divulgo Vagas Como Gesto de Solidariedade",
+            "tempo": "1 dia atrás",
+            "conteudo": "Vaga Na Certsys - Administrador de Dados / Modelador de Dados (PowerDesigner) 🖥️ Modelo de Trabalho Híbrido / Remoto.",
             "empresa": "Certsys",
             "cargo": "Administrador de Dados / Modelador de Dados",
-            "link": "https://certsys.gupy.io",
-            "tags": ["administrador de dados", "modelador", "dados", "database"]
+            "requisitos": "modelagem de dados sql powerdesigner dba",
+            "link": "https://www.linkedin.com"
         }
     ]
+    
+    for post in posts_feed:
+        with st.container(border=True):
+            st.markdown(f"**👤 {post['recrutador']}** • *{post['cargo_info']}* • 🕒 {post['tempo']}")
+            st.write(post['conteudo'])
+            
+            match_val = calcular_match(texto_curriculo, post['requisitos'])
+            
+            col_a, col_b = st.columns([3, 1])
+            with col_a:
+                st.markdown(f"🏢 **Empresa:** {post['empresa']} | 🎯 **Cargo:** {post['cargo']} | ⭐ **Match:** {match_val}%")
+            with col_b:
+                st.link_button("🔗 Aceder à vaga", post['link'])
 
-    for p in posts_feed:
-        match_perc = 85
-        if uploaded_file is not None and texto_cv:
-            matches = sum(1 for t in p["tags"] if t in texto_cv.lower())
-            match_perc = min(99, 60 + (matches * 15))
-
-        with st.container():
-            st.markdown(f"**👤 {p['autor']}**  \n*{p['cargo_autor']}* • {p['tempo']}")
-            st.markdown(f"> {p['texto']}")
-            st.markdown(f"🏢 **Empresa:** {p['empresa']} | 🎯 **Cargo:** {p['cargo']} | ⭐ **Match:** {match_perc}%")
-            st.markdown(f"🔗 [Aceder à página oficial da vaga ↗]({p['link']})")
-            st.markdown("---")
-
-with aba2:
-    st.subheader("💼 Oportunidades Ativas de Mercado (Belo Horizonte & Remoto)")
-    st.markdown("Lista clássica de vagas abertas em grandes empresas da região e remoto:")
-
+# --- ABA 2: VAGAS DE MERCADO (BH & REMOTO) ---
+with tab2:
+    st.subheader("💼 Vagas Ativas no Mercado (Belo Horizonte & Remoto)")
+    
     vagas_mercado = [
-        {
-            "empresa": "Grupo Zelo",
-            "cargo": "Especialista DBA – SQL Server",
-            "local": "Belo Horizonte - MG",
-            "link": "https://www.indeed.com/q-banco-de-dados-sql-l-belo-horizonte,-mg-vagas.html",
-            "detalhes": "Gestão de ambiente SQL Server, alta disponibilidade, rotinas de backup e Performance Tuning.",
-            "tags": ["dba", "sql server", "database", "tuning"]
-        },
-        {
-            "empresa": "G4F",
-            "cargo": "Administrador de Banco de Dados Sênior (DBA)",
-            "local": "Belo Horizonte - MG / Híbrido",
-            "link": "https://www.jobijoba.com.br/detail/97/87fbbf6425fbaf5947bc575eb441c777",
-            "detalhes": "Sólidos conhecimentos em SQL Server, PostgreSQL, MySQL e automação com Shell Script.",
-            "tags": ["dba", "sql server", "postgresql", "mysql"]
-        },
-        {
-            "empresa": "Itaú Unibanco",
-            "cargo": "Analista Engenharia de Dados Sênior",
-            "local": "Belo Horizonte / Remoto",
-            "link": "https://carreiras.itau.com.br/busca-de-vagas",
-            "detalhes": "Pipelines de dados em nuvem utilizando Spark, Python e ecossistema AWS.",
-            "tags": ["engenharia de dados", "python", "spark", "aws"]
-        },
-        {
-            "empresa": "Sigga Technologies",
-            "cargo": "Database Administrator (DBA)",
-            "local": "Belo Horizonte - MG / Remoto",
-            "link": "https://www.siggastech.com/careers/",
-            "detalhes": "Suporte a infraestruturas de dados globais e otimização de consultas complexas.",
-            "tags": ["dba", "database", "sql", "postgres"]
-        }
+        {"empresa": "BHS Soluções Digitais", "cargo": "Database Administrator Pleno", "local": "Belo Horizonte, MG (Híbrido)", "tipo": "Remoto/Presencial", "link": "https://www.linkedin.com"},
+        {"empresa": "Localiza & Co", "cargo": "Engenheiro de Dados Sénior", "local": "Belo Horizonte, MG", "tipo": "Híbrido", "link": "https://www.linkedin.com"},
+        {"empresa": "Totvs", "cargo": "Analista de Banco de Dados SQL", "local": "Remoto", "tipo": "100% Remoto", "link": "https://www.linkedin.com"}
     ]
-
+    
     for v in vagas_mercado:
-        match_score = 80
-        if uploaded_file is not None and texto_cv:
-            pontos = sum(1 for t in v["tags"] if t in texto_cv.lower())
-            match_score = min(98, 55 + (pontos * 12))
+        with st.container(border=True):
+            st.markdown(f"### 🏢 {v['empresa']}")
+            st.write(f"**Cargo:** {v['cargo']} | 📍 **Local:** {v['local']} | 💻 **Modelo:** {v['tipo']}")
+            st.link_button("Ver Oportunidade", v['link'])
 
-        with st.expander(f"🏢 {v['empresa']} — {v['cargo']} ({v['local']}) | ⭐ Match: {match_score}%"):
-            st.markdown(f"**Descrição:** {v['detalhes']}")
-            st.markdown(f"🔗 [Aceder ao site oficial ↗]({v['link']})")
-
-with aba3:
-    st.subheader("📋 Registar Candidatura Manualmente")
-    with st.form("form_cand"):
-        c1, c2 = st.columns(2)
-        with c1:
-            empresa_in = st.text_input("Nome da Empresa")
-            cargo_in = st.text_input("Cargo Pretendido")
-        with c2:
-            email_in = st.text_input("E-mail de Destino do Recrutador")
+# --- ABA 3: REGISTAR CANDIDATURA ---
+with tab3:
+    st.subheader("📝 Registar Nova Candidatura")
+    
+    with st.form("form_candidatura"):
+        col1, col2 = st.columns(2)
+        with col1:
+            empresa = st.text_input("Nome da Empresa")
+            cargo = st.text_input("Cargo Pretendido")
+        with col2:
+            status = st.selectbox("Status da Candidatura", ["Enviado", "Em Entrevista", "Proposta Recebida", "Rejeitado"])
+            data_cand = st.date_input("Data da Candidatura")
+            
+        obs = st.text_area("Observações / Notas")
+        submitted = st.form_submit_button("Guardar Candidatura")
         
-        btn = st.form_submit_button("Guardar Registo")
-        if btn:
-            if empresa_in and email_in:
+        if submitted:
+            if empresa and cargo:
                 conn = sqlite3.connect(DB_NAME)
                 cursor = conn.cursor()
-                cursor.execute("INSERT INTO candidaturas (data, empresa, cargo, email) VALUES (datetime('now', 'localtime'), ?, ?, ?)", (empresa_in, cargo_in, email_in))
+                cursor.execute("INSERT INTO candidaturas (empresa, cargo, status, data, observacoes) VALUES (?, ?, ?, ?, ?)",
+                               (empresa, cargo, status, str(data_cand), obs))
                 conn.commit()
                 conn.close()
-                st.success(f"✅ Candidatura para '{empresa_in}' guardada!")
+                st.success(f"Candidatura para {empresa} guardada com sucesso!")
             else:
-                st.warning("Preencha todos os campos obrigatórios.")
+                st.warning("Por favor, preencha pelo menos a empresa e o cargo.")
 
-with aba4:
+# --- ABA 4: HISTÓRICO & RELATÓRIOS ---
+with tab4:
     st.subheader("📊 Histórico de Candidaturas")
+    
     conn = sqlite3.connect(DB_NAME)
-    df = pd.read_sql("SELECT * FROM candidaturas", conn)
+    df_cand = pd.read_sql_query("SELECT * FROM candidaturas", conn)
     conn.close()
-    if not df.empty:
-        st.dataframe(df, use_container_width=True)
+    
+    if not df_cand.empty:
+        st.dataframe(df_cand, use_container_width=True)
+        total = len(df_cand)
+        st.metric("Total de Candidaturas Registadas", total)
     else:
-        st.info("Ainda não existem registos no histórico.")
+        st.info("Ainda não existem candidaturas registadas. Utilize a aba anterior para começar.")
