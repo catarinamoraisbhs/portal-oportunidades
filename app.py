@@ -11,7 +11,7 @@ st.set_page_config(
     layout="wide"
 )
 
-DB_NAME = "portal_oportunidades_v5.db"
+DB_NAME = "portal_oportunidades_v6.db"
 
 # --- 2. FUNÇÕES DE SEGURANÇA E BASE DE DADOS ---
 def make_hash(password):
@@ -36,7 +36,7 @@ def init_db():
         )
     ''')
     
-    # Tabela de utilizadores (incluindo o campo para o currículo em texto)
+    # Tabela de utilizadores com a coluna curriculo_texto
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS usuarios (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -47,25 +47,17 @@ def init_db():
         )
     ''')
     
-    # Migrações seguras para bases de dados existentes
-    try:
-        cursor.execute("ALTER TABLE usuarios ADD COLUMN primeiro_acesso INTEGER DEFAULT 1")
-    except sqlite3.OperationalError:
-        pass
-        
-    try:
-        cursor.execute("ALTER TABLE usuarios ADD COLUMN curriculo_texto TEXT")
-    except sqlite3.OperationalError:
-        pass
+    conn.commit()
     
+    # Criar admin padrão se a tabela estiver vazia
     cursor.execute("SELECT COUNT(*) FROM usuarios")
     if cursor.fetchone()[0] == 0:
         default_user = "catarina"
         default_pass = make_hash("admin123")
         cursor.execute("INSERT INTO usuarios (username, password, primeiro_acesso) VALUES (?, ?, ?)", 
                        (default_user, default_pass, 1))
-    
-    conn.commit()
+        conn.commit()
+        
     conn.close()
 
 init_db()
@@ -178,27 +170,21 @@ with st.sidebar:
     
     if texto_curriculo_salvo:
         st.success("✅ Currículo carregado no perfil!")
-        if st.checkbox("🔄 Substituir currículo atual"):
-            uploaded_file = st.file_uploader("Escolha o novo PDF", type=["pdf"])
-            if uploaded_file is not None:
-                novo_texto = extrair_texto_pdf(uploaded_file)
-                conn = sqlite3.connect(DB_NAME)
-                cursor = conn.cursor()
-                cursor.execute("UPDATE usuarios SET curriculo_texto = ? WHERE username = ?", (novo_texto, st.session_state["username"]))
-                conn.commit()
-                conn.close()
-                st.success("Currículo atualizado com sucesso!")
-                st.rerun()
-    else:
-        uploaded_file = st.file_uploader("Carregue o seu PDF", type=["pdf"])
-        if uploaded_file is not None:
-            novo_texto = extrair_texto_pdf(uploaded_file)
+    
+    # O componente file_uploader serve tanto para enviar o primeiro como para substituir o anterior automaticamente
+    uploaded_file = st.file_uploader("Carregar ou Substituir Currículo (PDF)", type=["pdf"])
+    
+    if uploaded_file is not None:
+        # Extrair o texto do novo PDF enviado
+        novo_texto = extrair_texto_pdf(uploaded_file)
+        if novo_texto:
+            # Substituir na base de dados automaticamente
             conn = sqlite3.connect(DB_NAME)
             cursor = conn.cursor()
             cursor.execute("UPDATE usuarios SET curriculo_texto = ? WHERE username = ?", (novo_texto, st.session_state["username"]))
             conn.commit()
             conn.close()
-            st.success("Currículo guardado no perfil com sucesso!")
+            st.success("🔄 Currículo substituído e atualizado com sucesso!")
             st.rerun()
             
     st.markdown("---")
@@ -282,9 +268,17 @@ lista_oportunidades = [
     }
 ]
 
-# Calcular o match utilizando o currículo guardado na base de dados do utilizador
+# Recarregar o texto atualizado da base de dados para recalcular o match em tempo real
+conn = sqlite3.connect(DB_NAME)
+cursor = conn.cursor()
+cursor.execute("SELECT curriculo_texto FROM usuarios WHERE username = ?", (st.session_state["username"],))
+res_cv = cursor.fetchone()
+conn.close()
+texto_atual = res_cv[0] if res_cv and res_cv[0] else ""
+
+# Calcular o match utilizando o currículo atualizado
 for op in lista_oportunidades:
-    match_val, keywords = calcular_match(texto_curriculo_salvo, op["requisitos"])
+    match_val, keywords = calcular_match(texto_atual, op["requisitos"])
     op["match_val"] = match_val
     op["keywords"] = keywords
 
