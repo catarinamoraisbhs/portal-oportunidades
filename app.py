@@ -36,18 +36,25 @@ def init_db():
         )
     ''')
     
-    # Tabela de utilizadores
+    # Tabela de utilizadores (incluindo o campo para o currículo em texto)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS usuarios (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE,
             password TEXT,
-            primeiro_acesso INTEGER DEFAULT 1
+            primeiro_acesso INTEGER DEFAULT 1,
+            curriculo_texto TEXT
         )
     ''')
     
+    # Migrações seguras para bases de dados existentes
     try:
         cursor.execute("ALTER TABLE usuarios ADD COLUMN primeiro_acesso INTEGER DEFAULT 1")
+    except sqlite3.OperationalError:
+        pass
+        
+    try:
+        cursor.execute("ALTER TABLE usuarios ADD COLUMN curriculo_texto TEXT")
     except sqlite3.OperationalError:
         pass
     
@@ -149,27 +156,51 @@ def calcular_match(texto_curriculo, requisitos_vaga):
         return 50, []
     
     texto_curriculo_lower = texto_curriculo.lower()
-    # Lista de competências técnicas relevantes para DBA e Dados
     palavras_chave = ["sql", "python", "dba", "etl", "aws", "azure", "postgres", "mysql", "oracle", "power bi", "pandas", "git", "linux", "docker", "modelagem de dados", "powerdesigner"]
     
     encontradas = [p for p in palavras_chave if p in texto_curriculo_lower and p in requisitos_vaga.lower()]
-    
-    # Cálculo dinâmico baseado nas competências encontradas que cruzam com os requisitos
     match_base = 50 + (len(encontradas) * 10)
     return min(match_base, 98), encontradas
+
+# Obter o currículo guardado na base de dados para o utilizador atual
+conn = sqlite3.connect(DB_NAME)
+cursor = conn.cursor()
+cursor.execute("SELECT curriculo_texto FROM usuarios WHERE username = ?", (st.session_state["username"],))
+res_cv = cursor.fetchone()
+conn.close()
+texto_curriculo_salvo = res_cv[0] if res_cv and res_cv[0] else ""
 
 # --- 5. BARRA LATERAL ---
 with st.sidebar:
     st.markdown(f"👤 **Utilizador:** `{st.session_state['username']}`")
     st.markdown("---")
-    st.markdown("## 📄 Carregar Currículo PDF")
-    uploaded_file = st.file_uploader("Escolha o seu PDF", type=["pdf"])
+    st.markdown("## 📄 Gestão de Currículo PDF")
     
-    texto_curriculo = ""
-    if uploaded_file is not None:
-        texto_curriculo = extrair_texto_pdf(uploaded_file)
-        st.success("Currículo carregado com sucesso! As vagas foram ordenadas por compatibilidade.")
-    
+    if texto_curriculo_salvo:
+        st.success("✅ Currículo carregado no perfil!")
+        if st.checkbox("🔄 Substituir currículo atual"):
+            uploaded_file = st.file_uploader("Escolha o novo PDF", type=["pdf"])
+            if uploaded_file is not None:
+                novo_texto = extrair_texto_pdf(uploaded_file)
+                conn = sqlite3.connect(DB_NAME)
+                cursor = conn.cursor()
+                cursor.execute("UPDATE usuarios SET curriculo_texto = ? WHERE username = ?", (novo_texto, st.session_state["username"]))
+                conn.commit()
+                conn.close()
+                st.success("Currículo atualizado com sucesso!")
+                st.rerun()
+    else:
+        uploaded_file = st.file_uploader("Carregue o seu PDF", type=["pdf"])
+        if uploaded_file is not None:
+            novo_texto = extrair_texto_pdf(uploaded_file)
+            conn = sqlite3.connect(DB_NAME)
+            cursor = conn.cursor()
+            cursor.execute("UPDATE usuarios SET curriculo_texto = ? WHERE username = ?", (novo_texto, st.session_state["username"]))
+            conn.commit()
+            conn.close()
+            st.success("Currículo guardado no perfil com sucesso!")
+            st.rerun()
+            
     st.markdown("---")
     if st.button("🚪 Terminar Sessão"):
         st.session_state["autenticado"] = False
@@ -188,7 +219,6 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "⚙️ Gestão de Utilizadores"
 ])
 
-# Lista centralizada de todas as oportunidades (Feed + Mercado) com os seus requisitos técnicos
 lista_oportunidades = [
     {
         "tipo_origem": "Feed LinkedIn",
@@ -252,19 +282,17 @@ lista_oportunidades = [
     }
 ]
 
-# Calcular o match para cada vaga e adicionar à estrutura
+# Calcular o match utilizando o currículo guardado na base de dados do utilizador
 for op in lista_oportunidades:
-    match_val, keywords = calcular_match(texto_curriculo, op["requisitos"])
+    match_val, keywords = calcular_match(texto_curriculo_salvo, op["requisitos"])
     op["match_val"] = match_val
     op["keywords"] = keywords
 
-# Ordenar as vagas da com maior match para a com menor match
 lista_oportunidades_ordenadas = sorted(lista_oportunidades, key=lambda x: x["match_val"], reverse=True)
 
 # --- ABA 1: POSTS DO FEED (LINKEDIN) ---
 with tab1:
     st.subheader("👥 Publicações de Recrutadores no Feed (Ordenadas por Compatibilidade)")
-    
     posts_feed = [op for op in lista_oportunidades_ordenadas if op["tipo_origem"] == "Feed LinkedIn"]
     
     for post in posts_feed:
@@ -273,14 +301,11 @@ with tab1:
             with col_head1:
                 st.markdown(f"**👤 {post['recrutador']}** • *{post['cargo_info']}* • 🕒 {post['tempo']}")
             with col_head2:
-                # Cor do selo com base no match
-                cor_badge = "green" if post['match_val'] >= 75 else "orange"
                 st.markdown(f"⭐ **Match: {post['match_val']}%**")
                 
             st.write(post['conteudo'])
-            
             if post['keywords']:
-                st.caption(f"💡 **Competências identificadas no seu currículo para esta vaga:** {', '.join([k.upper() for k in post['keywords']])}")
+                st.caption(f"💡 **Competências identificadas no seu perfil para esta vaga:** {', '.join([k.upper() for k in post['keywords']])}")
             
             col_a, col_b = st.columns([3, 1])
             with col_a:
@@ -291,7 +316,6 @@ with tab1:
 # --- ABA 2: VAGAS DE MERCADO ---
 with tab2:
     st.subheader("💼 Vagas Ativas no Mercado (Belo Horizonte & Remoto - Ordenadas por Compatibilidade)")
-    
     vagas_mercado = [op for op in lista_oportunidades_ordenadas if op["tipo_origem"] == "Vaga de Mercado"]
     
     for v in vagas_mercado:
@@ -304,10 +328,8 @@ with tab2:
                 
             st.write(v['conteudo'])
             st.write(f"📍 **Local:** {v['local']}")
-            
             if v['keywords']:
-                st.caption(f"💡 **Competências identificadas no seu currículo para esta vaga:** {', '.join([k.upper() for k in v['keywords']])}")
-                
+                st.caption(f"💡 **Competências identificadas no seu perfil para esta vaga:** {', '.join([k.upper() for k in v['keywords']])}")
             st.link_button("Ver Oportunidade", v['link'])
 
 # --- ABA 3: REGISTAR CANDIDATURA ---
@@ -352,8 +374,6 @@ with tab4:
 # --- ABA 5: GESTÃO DE UTILIZADORES ---
 with tab5:
     st.subheader("⚙️ Criar Novo Utilizador")
-    st.markdown("Adicione novos utilizadores ao portal. Eles receberão uma senha provisória e serão obrigados a alterá-la no primeiro acesso.")
-    
     with st.form("form_new_user"):
         novo_user = st.text_input("Nome de Utilizador (Username)")
         senha_prov = st.text_input("Palavra-passe Provisória", type="password")
@@ -368,9 +388,9 @@ with tab5:
                                    (novo_user, make_hash(senha_prov)))
                     conn.commit()
                     conn.close()
-                    st.success(f"Utilizador `{novo_user}` criado com sucesso! No primeiro login, ser-lhe-á pedido para alterar a senha.")
+                    st.success(f"Utilizador `{novo_user}` criado com sucesso!")
                 except sqlite3.IntegrityError:
-                    st.error("❌ O nome de utilizador já existe. Escolha outro.")
+                    st.error("❌ O nome de utilizador já existe.")
             else:
                 st.warning("⚠️ Preencha todos os campos.")
                 
