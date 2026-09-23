@@ -46,13 +46,11 @@ def init_db():
         )
     ''')
     
-    # Garantir compatibilidade com bases de dados antigas (adiciona a coluna se não existir)
     try:
         cursor.execute("ALTER TABLE usuarios ADD COLUMN primeiro_acesso INTEGER DEFAULT 1")
     except sqlite3.OperationalError:
-        pass # A coluna já existe
+        pass
     
-    # Criar admin padrão se a tabela estiver vazia
     cursor.execute("SELECT COUNT(*) FROM usuarios")
     if cursor.fetchone()[0] == 0:
         default_user = "catarina"
@@ -134,7 +132,7 @@ if not st.session_state["autenticado"]:
     
     st.stop()
 
-# --- 4. FUNÇÕES DE SUPORTE (PDF E MATCH) ---
+# --- 4. FUNÇÕES DE SUPORTE (PDF E MATCH INTELIGENTE) ---
 def extrair_texto_pdf(pdf_file):
     try:
         reader = PdfReader(pdf_file)
@@ -148,12 +146,17 @@ def extrair_texto_pdf(pdf_file):
 
 def calcular_match(texto_curriculo, requisitos_vaga):
     if not texto_curriculo:
-        return 50
+        return 50, []
+    
     texto_curriculo_lower = texto_curriculo.lower()
-    palavras_chave = ["sql", "python", "dba", "etl", "aws", "azure", "postgres", "mysql", "oracle", "power bi", "pandas", "git", "linux", "docker"]
-    encontradas = sum(1 for p in palavras_chave if p in texto_curriculo_lower and p in requisitos_vaga.lower())
-    match_base = 60 + (encontradas * 7)
-    return min(match_base, 98)
+    # Lista de competências técnicas relevantes para DBA e Dados
+    palavras_chave = ["sql", "python", "dba", "etl", "aws", "azure", "postgres", "mysql", "oracle", "power bi", "pandas", "git", "linux", "docker", "modelagem de dados", "powerdesigner"]
+    
+    encontradas = [p for p in palavras_chave if p in texto_curriculo_lower and p in requisitos_vaga.lower()]
+    
+    # Cálculo dinâmico baseado nas competências encontradas que cruzam com os requisitos
+    match_base = 50 + (len(encontradas) * 10)
+    return min(match_base, 98), encontradas
 
 # --- 5. BARRA LATERAL ---
 with st.sidebar:
@@ -165,7 +168,7 @@ with st.sidebar:
     texto_curriculo = ""
     if uploaded_file is not None:
         texto_curriculo = extrair_texto_pdf(uploaded_file)
-        st.success("Currículo carregado com sucesso!")
+        st.success("Currículo carregado com sucesso! As vagas foram ordenadas por compatibilidade.")
     
     st.markdown("---")
     if st.button("🚪 Terminar Sessão"):
@@ -175,7 +178,7 @@ with st.sidebar:
 
 # --- 6. CORPO PRINCIPAL DO PORTAL ---
 st.title("🎯 Portal de Oportunidades: Vagas & Feed do LinkedIn")
-st.markdown("Monitorização combinada de posts de recrutadores no feed e vagas ativas no mercado de tecnologia em Belo Horizonte e Remoto.")
+st.markdown("Monitorização inteligente de posts de recrutadores e vagas de mercado adaptadas automaticamente ao seu perfil profissional.")
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "📢 Posts do Feed (LinkedIn)", 
@@ -185,55 +188,126 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "⚙️ Gestão de Utilizadores"
 ])
 
+# Lista centralizada de todas as oportunidades (Feed + Mercado) com os seus requisitos técnicos
+lista_oportunidades = [
+    {
+        "tipo_origem": "Feed LinkedIn",
+        "recrutador": "Gabriel Wolski",
+        "cargo_info": "Tech Recruiter | Recrutamento e Seleção",
+        "tempo": "7 horas atrás",
+        "conteudo": "Estamos com novas oportunidades na Certsys, todas as posições 100% remota! 🚀 Vaga aberta para Especialista DBA e Banco de Dados.",
+        "empresa": "Certsys",
+        "cargo": "Especialista DBA / Banco de Dados",
+        "local": "100% Remoto",
+        "requisitos": "sql dba postgresql oracle aws python",
+        "link": "https://www.linkedin.com"
+    },
+    {
+        "tipo_origem": "Feed LinkedIn",
+        "recrutador": "Hilda Barbosa",
+        "cargo_info": "Divulgo Vagas Como Gesto de Solidariedade",
+        "tempo": "1 dia atrás",
+        "conteudo": "Vaga Na Certsys - Administrador de Dados / Modelador de Dados (PowerDesigner) 🖥️ Modelo de Trabalho Híbrido / Remoto.",
+        "empresa": "Certsys",
+        "cargo": "Administrador de Dados / Modelador de Dados",
+        "local": "Híbrido / Remoto",
+        "requisitos": "modelagem de dados sql powerdesigner dba",
+        "link": "https://www.linkedin.com"
+    },
+    {
+        "tipo_origem": "Vaga de Mercado",
+        "recrutador": "BHS Soluções Digitais",
+        "cargo_info": "Empresa de Tecnologia",
+        "tempo": "Ativo",
+        "conteudo": "Procuramos profissional focado em gestão de bases de dados, otimização de queries e suporte à infraestrutura corporativa.",
+        "empresa": "BHS Soluções Digitais",
+        "cargo": "Database Administrator Pleno",
+        "local": "Belo Horizonte, MG (Híbrido)",
+        "requisitos": "sql dba mysql postgresql linux git",
+        "link": "https://www.linkedin.com"
+    },
+    {
+        "tipo_origem": "Vaga de Mercado",
+        "recrutador": "Localiza & Co",
+        "cargo_info": "Grandes Corporações",
+        "tempo": "Ativo",
+        "conteudo": "Desenvolvimento de pipelines de dados, integração de grandes volmetrias e arquitetura de dados moderna na nuvem.",
+        "empresa": "Localiza & Co",
+        "cargo": "Engenheiro de Dados Sénior",
+        "local": "Belo Horizonte, MG",
+        "requisitos": "python etl aws pandas sql azure",
+        "link": "https://www.linkedin.com"
+    },
+    {
+        "tipo_origem": "Vaga de Mercado",
+        "recrutador": "Totvs",
+        "cargo_info": "Software & Soluções",
+        "tempo": "Ativo",
+        "conteudo": "Análise, tuning e suporte a bases de dados relacionais para clientes de grande porte em ambiente corporativo.",
+        "empresa": "Totvs",
+        "cargo": "Analista de Banco de Dados SQL",
+        "local": "Remoto",
+        "requisitos": "sql dba oracle mysql",
+        "link": "https://www.linkedin.com"
+    }
+]
+
+# Calcular o match para cada vaga e adicionar à estrutura
+for op in lista_oportunidades:
+    match_val, keywords = calcular_match(texto_curriculo, op["requisitos"])
+    op["match_val"] = match_val
+    op["keywords"] = keywords
+
+# Ordenar as vagas da com maior match para a com menor match
+lista_oportunidades_ordenadas = sorted(lista_oportunidades, key=lambda x: x["match_val"], reverse=True)
+
 # --- ABA 1: POSTS DO FEED (LINKEDIN) ---
 with tab1:
-    st.subheader("👥 Publicações de Recrutadores no Feed")
-    posts_feed = [
-        {
-            "recrutador": "Gabriel Wolski",
-            "cargo_info": "Tech Recruiter | Recrutamento e Seleção (R&S)",
-            "tempo": "7 horas atrás",
-            "conteudo": "Estamos com novas oportunidades na Certsys, todas as posições 100% remota! 🚀\n\nSe você estava esperando um sinal para dar aquele próximo passo na carreira... talvez seja esse!  👀 Vaga aberta para Especialista DBA e Banco de Dados.",
-            "empresa": "Certsys",
-            "cargo": "Especialista DBA / Banco de Dados",
-            "requisitos": "sql dba postgresql oracle aws",
-            "link": "https://www.linkedin.com"
-        },
-        {
-            "recrutador": "Hilda Barbosa",
-            "cargo_info": "Divulgo Vagas Como Gesto de Solidariedade",
-            "tempo": "1 dia atrás",
-            "conteudo": "Vaga Na Certsys - Administrador de Dados / Modelador de Dados (PowerDesigner) 🖥️ Modelo de Trabalho Híbrido / Remoto.",
-            "empresa": "Certsys",
-            "cargo": "Administrador de Dados / Modelador de Dados",
-            "requisitos": "modelagem de dados sql powerdesigner dba",
-            "link": "https://www.linkedin.com"
-        }
-    ]
+    st.subheader("👥 Publicações de Recrutadores no Feed (Ordenadas por Compatibilidade)")
+    
+    posts_feed = [op for op in lista_oportunidades_ordenadas if op["tipo_origem"] == "Feed LinkedIn"]
     
     for post in posts_feed:
         with st.container(border=True):
-            st.markdown(f"**👤 {post['recrutador']}** • *{post['cargo_info']}* • 🕒 {post['tempo']}")
+            col_head1, col_head2 = st.columns([4, 1])
+            with col_head1:
+                st.markdown(f"**👤 {post['recrutador']}** • *{post['cargo_info']}* • 🕒 {post['tempo']}")
+            with col_head2:
+                # Cor do selo com base no match
+                cor_badge = "green" if post['match_val'] >= 75 else "orange"
+                st.markdown(f"⭐ **Match: {post['match_val']}%**")
+                
             st.write(post['conteudo'])
-            match_val = calcular_match(texto_curriculo, post['requisitos'])
+            
+            if post['keywords']:
+                st.caption(f"💡 **Competências identificadas no seu currículo para esta vaga:** {', '.join([k.upper() for k in post['keywords']])}")
+            
             col_a, col_b = st.columns([3, 1])
             with col_a:
-                st.markdown(f"🏢 **Empresa:** {post['empresa']} | 🎯 **Cargo:** {post['cargo']} | ⭐ **Match:** {match_val}%")
+                st.markdown(f"🏢 **Empresa:** {post['empresa']} | 🎯 **Cargo:** {post['cargo']}")
             with col_b:
                 st.link_button("🔗 Aceder à vaga", post['link'])
 
 # --- ABA 2: VAGAS DE MERCADO ---
 with tab2:
-    st.subheader("💼 Vagas Ativas no Mercado (Belo Horizonte & Remoto)")
-    vagas_mercado = [
-        {"empresa": "BHS Soluções Digitais", "cargo": "Database Administrator Pleno", "local": "Belo Horizonte, MG (Híbrido)", "tipo": "Remoto/Presencial", "link": "https://www.linkedin.com"},
-        {"empresa": "Localiza & Co", "cargo": "Engenheiro de Dados Sénior", "local": "Belo Horizonte, MG", "tipo": "Híbrido", "link": "https://www.linkedin.com"},
-        {"empresa": "Totvs", "cargo": "Analista de Banco de Dados SQL", "local": "Remoto", "tipo": "100% Remoto", "link": "https://www.linkedin.com"}
-    ]
+    st.subheader("💼 Vagas Ativas no Mercado (Belo Horizonte & Remoto - Ordenadas por Compatibilidade)")
+    
+    vagas_mercado = [op for op in lista_oportunidades_ordenadas if op["tipo_origem"] == "Vaga de Mercado"]
+    
     for v in vagas_mercado:
         with st.container(border=True):
-            st.markdown(f"### 🏢 {v['empresa']}")
-            st.write(f"**Cargo:** {v['cargo']} | 📍 **Local:** {v['local']} | 💻 **Modelo:** {v['tipo']}")
+            col_v1, col_v2 = st.columns([4, 1])
+            with col_v1:
+                st.markdown(f"### 🏢 {v['empresa']} - {v['cargo']}")
+            with col_v2:
+                st.markdown(f"⭐ **Match: {v['match_val']}%**")
+                
+            st.write(v['conteudo'])
+            st.write(f"📍 **Local:** {v['local']}")
+            
+            if v['keywords']:
+                st.caption(f"💡 **Competências identificadas no seu currículo para esta vaga:** {', '.join([k.upper() for k in v['keywords']])}")
+                
             st.link_button("Ver Oportunidade", v['link'])
 
 # --- ABA 3: REGISTAR CANDIDATURA ---
