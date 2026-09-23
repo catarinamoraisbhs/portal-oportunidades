@@ -11,7 +11,7 @@ st.set_page_config(
     layout="wide"
 )
 
-DB_NAME = "portal_oportunidades_v6.db"
+DB_NAME = "portal_oportunidades_v7.db"
 
 # --- 2. FUNÇÕES DE SEGURANÇA E BASE DE DADOS ---
 def make_hash(password):
@@ -24,7 +24,6 @@ def init_db():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     
-    # Tabela de candidaturas
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS candidaturas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -36,7 +35,6 @@ def init_db():
         )
     ''')
     
-    # Tabela de utilizadores com a coluna curriculo_texto
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS usuarios (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -49,7 +47,6 @@ def init_db():
     
     conn.commit()
     
-    # Criar admin padrão se a tabela estiver vazia
     cursor.execute("SELECT COUNT(*) FROM usuarios")
     if cursor.fetchone()[0] == 0:
         default_user = "catarina"
@@ -169,26 +166,32 @@ with st.sidebar:
     st.markdown("## 📄 Gestão de Currículo PDF")
     
     if texto_curriculo_salvo:
-        st.success("✅ Currículo carregado no perfil!")
+        st.success("✅ Currículo ativo no perfil!")
+    else:
+        st.warning("⚠️ Nenhum currículo carregado. O match está fixo em 50%.")
     
-    # O componente file_uploader serve tanto para enviar o primeiro como para substituir o anterior automaticamente
-    uploaded_file = st.file_uploader("Carregar ou Substituir Currículo (PDF)", type=["pdf"])
-    
-    if uploaded_file is not None:
-        # Extrair o texto do novo PDF enviado
-        novo_texto = extrair_texto_pdf(uploaded_file)
-        if novo_texto:
-            # Substituir na base de dados automaticamente
-            conn = sqlite3.connect(DB_NAME)
-            cursor = conn.cursor()
-            cursor.execute("UPDATE usuarios SET curriculo_texto = ? WHERE username = ?", (novo_texto, st.session_state["username"]))
-            conn.commit()
-            conn.close()
-            st.success("🔄 Currículo substituído e atualizado com sucesso!")
-            st.rerun()
+    with st.form("form_upload_cv"):
+        uploaded_file = st.file_uploader("Carregar / Substituir PDF", type=["pdf"])
+        submitted_cv = st.form_submit_button("💾 Guardar / Atualizar Currículo", use_container_width=True)
+        
+        if submitted_cv:
+            if uploaded_file is not None:
+                novo_texto = extrair_texto_pdf(uploaded_file)
+                if novo_texto.strip():
+                    conn = sqlite3.connect(DB_NAME)
+                    cursor = conn.cursor()
+                    cursor.execute("UPDATE usuarios SET curriculo_texto = ? WHERE username = ?", (novo_texto, st.session_state["username"]))
+                    conn.commit()
+                    conn.close()
+                    st.success("✅ Currículo atualizado com sucesso!")
+                    st.rerun()
+                else:
+                    st.error("❌ O PDF parece estar vazio ou não foi possível extrair texto.")
+            else:
+                st.warning("⚠️ Selecione um ficheiro PDF primeiro.")
             
     st.markdown("---")
-    if st.button("🚪 Terminar Sessão"):
+    if st.button("🚪 Terminar Sessão", use_container_width=True):
         st.session_state["autenticado"] = False
         st.session_state["username"] = ""
         st.rerun()
