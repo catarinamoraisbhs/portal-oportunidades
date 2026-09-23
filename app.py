@@ -6,7 +6,7 @@ from pypdf import PdfReader
 
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
-    page_title="Portal de Oportunidades: DBA & Dados",
+    page_title="Portal de Oportunidades: Multi-Perfil",
     page_icon="🎯",
     layout="wide"
 )
@@ -24,7 +24,6 @@ def init_db():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     
-    # Tabela de candidaturas com coluna 'username' para isolar dados por utilizador
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS candidaturas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -37,7 +36,6 @@ def init_db():
         )
     ''')
     
-    # Garantir migração segura caso a tabela já exista sem a coluna username
     cursor.execute("PRAGMA table_info(candidaturas)")
     colunas = [col[1] for col in cursor.fetchall()]
     if "username" not in colunas:
@@ -55,7 +53,6 @@ def init_db():
     
     conn.commit()
     
-    # Criar utilizador padrão se a tabela estiver vazia
     cursor.execute("SELECT COUNT(*) FROM usuarios")
     if cursor.fetchone()[0] == 0:
         default_user = "catarina"
@@ -77,7 +74,7 @@ if "autenticado" not in st.session_state:
 if not st.session_state["autenticado"]:
     st.markdown("<br><br>", unsafe_allow_html=True)
     st.markdown("<h1 style='text-align: center; color: #FF4B4B;'>🎯 Portal de Oportunidades</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #888;'>Painel Restrito de Gestão de Carreira (DBA / Engenharia de Dados)</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #888;'>Painel Restrito de Gestão de Carreira Multi-Perfil (Dev, Suporte, DBA, SysAdmin)</p>", unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1, 1.5, 1])
@@ -137,7 +134,7 @@ if not st.session_state["autenticado"]:
     
     st.stop()
 
-# --- 4. FUNÇÕES DE SUPORTE (PDF E MATCH INTELIGENTE) ---
+# --- 4. FUNÇÕES DE SUPORTE (PDF E MATCH MULTI-PERFIL DINÂMICO) ---
 def extrair_texto_pdf(pdf_file):
     try:
         reader = PdfReader(pdf_file)
@@ -149,23 +146,36 @@ def extrair_texto_pdf(pdf_file):
         st.error(f"Erro ao ler PDF: {e}")
         return ""
 
-def calcular_match(texto_curriculo, requisitos_vaga):
+def calcular_match_dinamico(texto_curriculo, requisitos_vaga):
     if not texto_curriculo:
         return 0, []
     
     texto_curriculo_lower = texto_curriculo.lower()
-    palavras_chave = ["sql", "python", "dba", "etl", "aws", "azure", "postgres", "mysql", "oracle", "power bi", "pandas", "git", "linux", "docker", "modelagem de dados", "powerdesigner"]
     
-    encontradas = [p for p in palavras_chave if p in texto_curriculo_lower and p in requisitos_vaga.lower()]
-    match_base = 50 + (len(encontradas) * 10)
-    return min(match_base, 98), encontradas
+    # Dicionário alargado de competências cobrindo Dev, Suporte, Infra, Dados e Gestão
+    universo_skills = [
+        "sql", "python", "dba", "etl", "aws", "azure", "postgres", "mysql", "oracle", 
+        "power bi", "pandas", "git", "linux", "docker", "modelagem de dados", "powerdesigner",
+        "javascript", "react", "node", "java", "spring", "c#", ".net", "suporte", "helpdesk",
+        "redes", "incidentes", "itil", "scrum", "agile", "kubernetes", "terraform", "ci/cd"
+    ]
+    
+    # Identifica dinamicamente o que o candidato tem no currículo e que cruza com a vaga
+    encontradas = [p for p in universo_skills if p in texto_curriculo_lower and p in requisitos_vaga.lower()]
+    
+    # Se houver cruzamento direto, calcula match proporcional
+    if encontradas:
+        match_base = 45 + (len(encontradas) * 12)
+        return min(match_base, 98), encontradas
+    else:
+        # Match base mínimo caso o perfil seja de outra área completamente distinta
+        return 35, []
 
-# Auto-seed de currículo padrão para garantir visualização imediata
+# Currículo padrão genérico caso o utilizador recém-criado não tenha dados
 currículo_padrao_inicial = """
-Catarina - Database Administrator (DBA) & Engenharia de Dados
-Competências: SQL, Python, PostgreSQL, MySQL, Oracle, ETL, AWS, Azure, Pandas, Git, Linux, Docker, Modelagem de Dados, PowerDesigner.
-Experiência em otimização de queries, administração de bases de dados relacionais e suporte a infraestruturas corporativas.
-Formação em Ciência da Computação.
+Candidato - Perfil Tecnológico Multi-Área
+Competências: SQL, Python, Suporte Técnico, Redes, Gestão de Incidentes, Git, Linux, Metodologias Ágeis.
+Formação em Tecnologia da Informação / Ciência da Computação.
 """
 
 conn = sqlite3.connect(DB_NAME)
@@ -219,8 +229,8 @@ with st.sidebar:
         st.rerun()
 
 # --- 6. CORPO PRINCIPAL DO PORTAL ---
-st.title("🎯 Portal de Oportunidades: Vagas & Feed do LinkedIn")
-st.markdown("Monitorização inteligente de posts de recrutadores e vagas de mercado adaptadas automaticamente ao seu perfil profissional.")
+st.title("🎯 Portal de Oportunidades: Vagas & Feed Multi-Perfil")
+st.markdown("Monitorização inteligente de oportunidades adaptada automaticamente ao perfil técnico carregado (Dev, Suporte, DBA, Infra).")
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "📢 Posts do Feed (LinkedIn)", 
@@ -230,72 +240,73 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "⚙️ Gestão de Utilizadores"
 ])
 
+# Base de oportunidades abrangendo várias áreas (Dev, Suporte, Dados, Infra)
 lista_oportunidades = [
     {
         "tipo_origem": "Feed LinkedIn",
         "recrutador": "Gabriel Wolski",
         "cargo_info": "Tech Recruiter | Recrutamento e Seleção",
         "tempo": "7 horas atrás",
-        "conteudo": "Estamos com novas oportunidades na Certsys, todas as posições 100% remota! 🚀 Vaga aberta para Especialista DBA e Banco de Dados.",
+        "conteudo": "Estamos com novas oportunidades na Certsys, posições 100% remotas! 🚀 Vaga aberta para Especialista DBA e Banco de Dados.",
         "empresa": "Certsys",
         "cargo": "Especialista DBA / Banco de Dados",
         "local": "100% Remoto",
         "requisitos": "sql dba postgresql oracle aws python",
-        "link": "https://www.linkedin.com"
+        "link": "https://www.linkedin.com/company/certsys/"
     },
     {
         "tipo_origem": "Feed LinkedIn",
-        "recrutador": "Hilda Barbosa",
-        "cargo_info": "Divulgo Vagas Como Gesto de Solidariedade",
+        "recrutador": "Mariana Souza",
+        "cargo_info": "Analista de Talent Acquisition",
         "tempo": "1 dia atrás",
-        "conteudo": "Vaga Na Certsys - Administrador de Dados / Modelador de Dados (PowerDesigner) 🖥️ Modelo de Trabalho Híbrido / Remoto.",
-        "empresa": "Certsys",
-        "cargo": "Administrador de Dados / Modelador de Dados",
-        "local": "Híbrido / Remoto",
-        "requisitos": "modelagem de dados sql powerdesigner dba",
-        "link": "https://www.linkedin.com"
+        "conteudo": "Procuramos profissional de suporte técnico N2/N3 para atendimento a infraestruturas críticas e gestão de incidentes corporativos.",
+        "empresa": "Totvs BH",
+        "cargo": "Analista de Suporte Técnico Pleno",
+        "local": "Belo Horizonte, MG (Híbrido)",
+        "requisitos": "suporte helpdesk redes incidentes itil linux",
+        "link": "https://www.linkedin.com/company/totvs/"
     },
     {
         "tipo_origem": "Vaga de Mercado",
         "recrutador": "BHS Soluções Digitais",
         "cargo_info": "Empresa de Tecnologia",
         "tempo": "Ativo",
-        "conteudo": "Procuramos profissional focado em gestão de bases de dados, otimização de queries e suporte à infraestrutura corporativa.",
+        "conteudo": "Oportunidade para Desenvolvedor Fullstack / Back-end com foco em APIs REST, Python, C# ou .Net e integração contínua.",
         "empresa": "BHS Soluções Digitais",
-        "cargo": "Database Administrator Pleno",
+        "cargo": "Desenvolvedor Software Pleno",
         "local": "Belo Horizonte, MG (Híbrido)",
-        "requisitos": "sql dba mysql postgresql linux git",
-        "link": "https://www.linkedin.com"
+        "requisitos": "python c# .net git docker ci/cd api",
+        "link": "https://www.linkedin.com/company/bhs-solucoes-digitais/"
     },
     {
         "tipo_origem": "Vaga de Mercado",
         "recrutador": "Localiza & Co",
         "cargo_info": "Grandes Corporações",
         "tempo": "Ativo",
-        "conteudo": "Desenvolvimento de pipelines de dados, integração de grandes volmetrias e arquitetura de dados moderna na nuvem.",
+        "conteudo": "Desenvolvimento de pipelines de dados, engenharia analítica e arquitetura moderna na nuvem (AWS/Azure).",
         "empresa": "Localiza & Co",
         "cargo": "Engenheiro de Dados Sénior",
         "local": "Belo Horizonte, MG",
         "requisitos": "python etl aws pandas sql azure",
-        "link": "https://www.linkedin.com"
+        "link": "https://www.linkedin.com/company/localiza-e-co/"
     },
     {
         "tipo_origem": "Vaga de Mercado",
-        "recrutador": "Totvs",
-        "cargo_info": "Software & Soluções",
+        "recrutador": "Prodest / Tech BH",
+        "cargo_info": "Infraestrutura & Redes",
         "tempo": "Ativo",
-        "conteudo": "Análise, tuning e suporte a bases de dados relacionais para clientes de grande porte em ambiente corporativo.",
-        "empresa": "Totvs",
-        "cargo": "Analista de Banco de Dados SQL",
+        "conteudo": "Administração de servidores Linux/Windows, automação com scripts e suporte avançado à infraestrutura de redes.",
+        "empresa": "Global Systems",
+        "cargo": "Administrador de Sistemas / SysAdmin",
         "local": "Remoto",
-        "requisitos": "sql dba oracle mysql",
-        "link": "https://www.linkedin.com"
+        "requisitos": "linux redessh terraform docker suporte itil",
+        "link": "https://www.linkedin.com/company/totvs/"
     }
 ]
 
-# Calcular match com o currículo atual
+# Calcular match dinâmico para cada oportunidade com base no currículo do utilizador ativo
 for op in lista_oportunidades:
-    match_val, keywords = calcular_match(texto_curriculo_salvo, op["requisitos"])
+    match_val, keywords = calcular_match_dinamico(texto_curriculo_salvo, op["requisitos"])
     op["match_val"] = match_val
     op["keywords"] = keywords
 
@@ -317,6 +328,8 @@ with tab1:
             st.write(post['conteudo'])
             if post['keywords']:
                 st.caption(f"💡 **Competências identificadas no seu perfil para esta vaga:** {', '.join([k.upper() for k in post['keywords']])}")
+            else:
+                st.caption("💡 *Nenhuma competência direta cruzada com este anúncio específico.*")
             
             col_a, col_b = st.columns([3, 1])
             with col_a:
@@ -341,6 +354,8 @@ with tab2:
             st.write(f"📍 **Local:** {v['local']}")
             if v['keywords']:
                 st.caption(f"💡 **Competências identificadas no seu perfil para esta vaga:** {', '.join([k.upper() for k in v['keywords']])}")
+            else:
+                st.caption("💡 *Nenhuma competência direta cruzada com este anúncio específico.*")
             st.link_button("Ver Oportunidade", v['link'])
 
 # --- ABA 3: REGISTAR CANDIDATURA ---
