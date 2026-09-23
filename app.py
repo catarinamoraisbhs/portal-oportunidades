@@ -142,7 +142,7 @@ def extrair_texto_pdf(pdf_file):
 
 def calcular_match(texto_curriculo, requisitos_vaga):
     if not texto_curriculo:
-        return 50, []
+        return 0, []
     
     texto_curriculo_lower = texto_curriculo.lower()
     palavras_chave = ["sql", "python", "dba", "etl", "aws", "azure", "postgres", "mysql", "oracle", "power bi", "pandas", "git", "linux", "docker", "modelagem de dados", "powerdesigner"]
@@ -168,7 +168,7 @@ with st.sidebar:
     if texto_curriculo_salvo:
         st.success("✅ Currículo ativo no perfil!")
     else:
-        st.warning("⚠️ Nenhum currículo carregado. O match está fixo em 50%.")
+        st.warning("⚠️ Nenhum currículo carregado. As vagas e o feed permanecerão ocultos até efetuar o upload.")
     
     with st.form("form_upload_cv"):
         uploaded_file = st.file_uploader("Carregar / Substituir PDF", type=["pdf"])
@@ -271,7 +271,7 @@ lista_oportunidades = [
     }
 ]
 
-# Recarregar o texto atualizado da base de dados para recalcular o match em tempo real
+# Recarregar o texto atualizado da base de dados
 conn = sqlite3.connect(DB_NAME)
 cursor = conn.cursor()
 cursor.execute("SELECT curriculo_texto FROM usuarios WHERE username = ?", (st.session_state["username"],))
@@ -289,45 +289,51 @@ lista_oportunidades_ordenadas = sorted(lista_oportunidades, key=lambda x: x["mat
 
 # --- ABA 1: POSTS DO FEED (LINKEDIN) ---
 with tab1:
-    st.subheader("👥 Publicações de Recrutadores no Feed (Ordenadas por Compatibilidade)")
-    posts_feed = [op for op in lista_oportunidades_ordenadas if op["tipo_origem"] == "Feed LinkedIn"]
-    
-    for post in posts_feed:
-        with st.container(border=True):
-            col_head1, col_head2 = st.columns([4, 1])
-            with col_head1:
-                st.markdown(f"**👤 {post['recrutador']}** • *{post['cargo_info']}* • 🕒 {post['tempo']}")
-            with col_head2:
-                st.markdown(f"⭐ **Match: {post['match_val']}%**")
+    st.subheader("👥 Publicações de Recrutadores no Feed")
+    if not texto_atual:
+        st.info("ℹ️ Por favor, carregue o seu currículo PDF na barra lateral para desbloquear e visualizar as oportunidades adaptadas ao seu perfil.")
+    else:
+        posts_feed = [op for op in lista_oportunidades_ordenadas if op["tipo_origem"] == "Feed LinkedIn"]
+        
+        for post in posts_feed:
+            with st.container(border=True):
+                col_head1, col_head2 = st.columns([4, 1])
+                with col_head1:
+                    st.markdown(f"**👤 {post['recrutador']}** • *{post['cargo_info']}* • 🕒 {post['tempo']}")
+                with col_head2:
+                    st.markdown(f"⭐ **Match: {post['match_val']}%**")
+                    
+                st.write(post['conteudo'])
+                if post['keywords']:
+                    st.caption(f"💡 **Competências identificadas no seu perfil para esta vaga:** {', '.join([k.upper() for k in post['keywords']])}")
                 
-            st.write(post['conteudo'])
-            if post['keywords']:
-                st.caption(f"💡 **Competências identificadas no seu perfil para esta vaga:** {', '.join([k.upper() for k in post['keywords']])}")
-            
-            col_a, col_b = st.columns([3, 1])
-            with col_a:
-                st.markdown(f"🏢 **Empresa:** {post['empresa']} | 🎯 **Cargo:** {post['cargo']}")
-            with col_b:
-                st.link_button("🔗 Aceder à vaga", post['link'])
+                col_a, col_b = st.columns([3, 1])
+                with col_a:
+                    st.markdown(f"🏢 **Empresa:** {post['empresa']} | 🎯 **Cargo:** {post['cargo']}")
+                with col_b:
+                    st.link_button("🔗 Aceder à vaga", post['link'])
 
 # --- ABA 2: VAGAS DE MERCADO ---
 with tab2:
-    st.subheader("💼 Vagas Ativas no Mercado (Belo Horizonte & Remoto - Ordenadas por Compatibilidade)")
-    vagas_mercado = [op for op in lista_oportunidades_ordenadas if op["tipo_origem"] == "Vaga de Mercado"]
-    
-    for v in vagas_mercado:
-        with st.container(border=True):
-            col_v1, col_v2 = st.columns([4, 1])
-            with col_v1:
-                st.markdown(f"### 🏢 {v['empresa']} - {v['cargo']}")
-            with col_v2:
-                st.markdown(f"⭐ **Match: {v['match_val']}%**")
-                
-            st.write(v['conteudo'])
-            st.write(f"📍 **Local:** {v['local']}")
-            if v['keywords']:
-                st.caption(f"💡 **Competências identificadas no seu perfil para esta vaga:** {', '.join([k.upper() for k in v['keywords']])}")
-            st.link_button("Ver Oportunidade", v['link'])
+    st.subheader("💼 Vagas Ativas no Mercado (Belo Horizonte & Remoto)")
+    if not texto_atual:
+        st.info("ℹ️ Por favor, carregue o seu currículo PDF na barra lateral para desbloquear e visualizar as vagas adaptadas ao seu perfil.")
+    else:
+        vagas_mercado = [op for op in lista_oportunidades_ordenadas if op["tipo_origem"] == "Vaga de Mercado"]
+        
+        for v in vagas_mercado:
+            with st.container(border=True):
+                col_v1, col_v2 = st.columns([4, 1])
+                with col_v1:
+                    st.markdown(f"### 🏢 {v['empresa']} - {v['cargo']}")
+                with col_v2:
+                    st.markdown(f"⭐ **Match: {v['match_val']}%**")
+                    
+                st.write(v['conteudo'])
+                st.write(f"📍 **Local:** {v['local']}")
+                if v['keywords']:
+                    st.caption(f"💡 **Competências identificadas no seu perfil para esta vaga:** {', '.join([k.upper() for k in v['keywords']])}")
+                st.link_button("Ver Oportunidade", v['link'])
 
 # --- ABA 3: REGISTAR CANDIDATURA ---
 with tab3:
