@@ -152,7 +152,6 @@ def calcular_match_dinamico(texto_curriculo, requisitos_vaga):
     
     texto_curriculo_lower = texto_curriculo.lower()
     
-    # Dicionário alargado de competências cobrindo Dev, Suporte, Infra, Dados e Gestão
     universo_skills = [
         "sql", "python", "dba", "etl", "aws", "azure", "postgres", "mysql", "oracle", 
         "power bi", "pandas", "git", "linux", "docker", "modelagem de dados", "powerdesigner",
@@ -160,18 +159,14 @@ def calcular_match_dinamico(texto_curriculo, requisitos_vaga):
         "redes", "incidentes", "itil", "scrum", "agile", "kubernetes", "terraform", "ci/cd"
     ]
     
-    # Identifica dinamicamente o que o candidato tem no currículo e que cruza com a vaga
     encontradas = [p for p in universo_skills if p in texto_curriculo_lower and p in requisitos_vaga.lower()]
     
-    # Se houver cruzamento direto, calcula match proporcional
     if encontradas:
         match_base = 45 + (len(encontradas) * 12)
         return min(match_base, 98), encontradas
     else:
-        # Match base mínimo caso o perfil seja de outra área completamente distinta
         return 35, []
 
-# Currículo padrão genérico caso o utilizador recém-criado não tenha dados
 currículo_padrao_inicial = """
 Candidato - Perfil Tecnológico Multi-Área
 Competências: SQL, Python, Suporte Técnico, Redes, Gestão de Incidentes, Git, Linux, Metodologias Ágeis.
@@ -240,7 +235,7 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "⚙️ Gestão de Utilizadores"
 ])
 
-# Base de oportunidades abrangendo várias áreas (Dev, Suporte, Dados, Infra)
+# Oportunidades com links seguros de pesquisa no LinkedIn para evitar páginas 404
 lista_oportunidades = [
     {
         "tipo_origem": "Feed LinkedIn",
@@ -252,7 +247,7 @@ lista_oportunidades = [
         "cargo": "Especialista DBA / Banco de Dados",
         "local": "100% Remoto",
         "requisitos": "sql dba postgresql oracle aws python",
-        "link": "https://www.linkedin.com/company/certsys/"
+        "link": "https://www.linkedin.com/search/results/all/?keywords=Certsys%20DBA"
     },
     {
         "tipo_origem": "Feed LinkedIn",
@@ -264,7 +259,7 @@ lista_oportunidades = [
         "cargo": "Analista de Suporte Técnico Pleno",
         "local": "Belo Horizonte, MG (Híbrido)",
         "requisitos": "suporte helpdesk redes incidentes itil linux",
-        "link": "https://www.linkedin.com/company/totvs/"
+        "link": "https://www.linkedin.com/search/results/all/?keywords=Totvs%20Suporte"
     },
     {
         "tipo_origem": "Vaga de Mercado",
@@ -276,7 +271,7 @@ lista_oportunidades = [
         "cargo": "Desenvolvedor Software Pleno",
         "local": "Belo Horizonte, MG (Híbrido)",
         "requisitos": "python c# .net git docker ci/cd api",
-        "link": "https://www.linkedin.com/company/bhs-solucoes-digitais/"
+        "link": "https://www.linkedin.com/search/results/all/?keywords=BHS%20Solucoes%20Digitais"
     },
     {
         "tipo_origem": "Vaga de Mercado",
@@ -288,23 +283,22 @@ lista_oportunidades = [
         "cargo": "Engenheiro de Dados Sénior",
         "local": "Belo Horizonte, MG",
         "requisitos": "python etl aws pandas sql azure",
-        "link": "https://www.linkedin.com/company/localiza-e-co/"
+        "link": "https://www.linkedin.com/search/results/all/?keywords=Localiza%20Engenheiro%20de%20Dados"
     },
     {
         "tipo_origem": "Vaga de Mercado",
-        "recrutador": "Prodest / Tech BH",
+        "recrutador": "Global Systems",
         "cargo_info": "Infraestrutura & Redes",
         "tempo": "Ativo",
         "conteudo": "Administração de servidores Linux/Windows, automação com scripts e suporte avançado à infraestrutura de redes.",
         "empresa": "Global Systems",
         "cargo": "Administrador de Sistemas / SysAdmin",
         "local": "Remoto",
-        "requisitos": "linux redessh terraform docker suporte itil",
-        "link": "https://www.linkedin.com/company/totvs/"
+        "requisitos": "linux redes ssh terraform docker suporte itil",
+        "link": "https://www.linkedin.com/search/results/all/?keywords=SysAdmin%20Linux"
     }
 ]
 
-# Calcular match dinâmico para cada oportunidade com base no currículo do utilizador ativo
 for op in lista_oportunidades:
     match_val, keywords = calcular_match_dinamico(texto_curriculo_salvo, op["requisitos"])
     op["match_val"] = match_val
