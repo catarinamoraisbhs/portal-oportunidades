@@ -37,6 +37,12 @@ def init_db():
         )
     ''')
     
+    # Garantir migração segura caso a tabela já exista sem a coluna username
+    cursor.execute("PRAGMA table_info(candidaturas)")
+    colunas = [col[1] for col in cursor.fetchall()]
+    if "username" not in colunas:
+        cursor.execute("ALTER TABLE candidaturas ADD COLUMN username TEXT")
+    
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS usuarios (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -356,7 +362,6 @@ with tab3:
             if empresa and cargo:
                 conn = sqlite3.connect(DB_NAME)
                 cursor = conn.cursor()
-                # Inserir candidatura associando ao username atual
                 cursor.execute("INSERT INTO candidaturas (username, empresa, cargo, status, data, observacoes) VALUES (?, ?, ?, ?, ?, ?)",
                                (st.session_state["username"], empresa, cargo, status, str(data_cand), obs))
                 conn.commit()
@@ -369,7 +374,6 @@ with tab3:
 with tab4:
     st.subheader("📊 Histórico de Candidaturas")
     conn = sqlite3.connect(DB_NAME)
-    # Filtrar candidaturas estritamente pelo utilizador com sessão iniciada
     df_cand = pd.read_sql_query("SELECT empresa, cargo, status, data, observacoes FROM candidaturas WHERE username = ?", 
                                 conn, params=(st.session_state["username"],))
     conn.close()
