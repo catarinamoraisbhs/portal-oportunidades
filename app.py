@@ -15,20 +15,20 @@ DB_NAME = "portal_oportunidades_v8.db"
 
 # --- 2. FUNÇÕES DE SEGURANÇA (BCRYPT) E BASE DE DADOS ---
 def make_hash(password):
-    # Gera um salt seguro e faz o hash da password
     return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
 def check_hash(password, hashed_text):
-    # Verifica se a password corresponde ao hash armazenado
     return bcrypt.checkpw(password.encode('utf-8'), hashed_text.encode('utf-8'))
 
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     
+    # Tabela de candidaturas com coluna 'username' para isolar dados por utilizador
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS candidaturas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT,
             empresa TEXT,
             cargo TEXT,
             status TEXT,
@@ -356,8 +356,9 @@ with tab3:
             if empresa and cargo:
                 conn = sqlite3.connect(DB_NAME)
                 cursor = conn.cursor()
-                cursor.execute("INSERT INTO candidaturas (empresa, cargo, status, data, observacoes) VALUES (?, ?, ?, ?, ?)",
-                               (empresa, cargo, status, str(data_cand), obs))
+                # Inserir candidatura associando ao username atual
+                cursor.execute("INSERT INTO candidaturas (username, empresa, cargo, status, data, observacoes) VALUES (?, ?, ?, ?, ?, ?)",
+                               (st.session_state["username"], empresa, cargo, status, str(data_cand), obs))
                 conn.commit()
                 conn.close()
                 st.success(f"Candidatura para {empresa} guardada com sucesso!")
@@ -368,14 +369,16 @@ with tab3:
 with tab4:
     st.subheader("📊 Histórico de Candidaturas")
     conn = sqlite3.connect(DB_NAME)
-    df_cand = pd.read_sql_query("SELECT * FROM candidaturas", conn)
+    # Filtrar candidaturas estritamente pelo utilizador com sessão iniciada
+    df_cand = pd.read_sql_query("SELECT empresa, cargo, status, data, observacoes FROM candidaturas WHERE username = ?", 
+                                conn, params=(st.session_state["username"],))
     conn.close()
     
     if not df_cand.empty:
         st.dataframe(df_cand, use_container_width=True)
-        st.metric("Total de Candidaturas Registadas", len(df_cand))
+        st.metric("Total das suas Candidaturas Registadas", len(df_cand))
     else:
-        st.info("Ainda não existem candidaturas registadas.")
+        st.info("Ainda não existem candidaturas registadas para a sua conta.")
 
 # --- ABA 5: GESTÃO DE UTILIZADORES ---
 with tab5:
