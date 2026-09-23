@@ -36,7 +36,7 @@ def init_db():
         )
     ''')
     
-    # Tabela de utilizadores (com campo para controlar primeiro acesso)
+    # Tabela de utilizadores
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS usuarios (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,6 +45,12 @@ def init_db():
             primeiro_acesso INTEGER DEFAULT 1
         )
     ''')
+    
+    # Garantir compatibilidade com bases de dados antigas (adiciona a coluna se não existir)
+    try:
+        cursor.execute("ALTER TABLE usuarios ADD COLUMN primeiro_acesso INTEGER DEFAULT 1")
+    except sqlite3.OperationalError:
+        pass # A coluna já existe
     
     # Criar admin padrão se a tabela estiver vazia
     cursor.execute("SELECT COUNT(*) FROM usuarios")
@@ -74,7 +80,6 @@ if not st.session_state["autenticado"]:
     col1, col2, col3 = st.columns([1, 1.5, 1])
     with col2:
         with st.container(border=True):
-            # Se o utilizador precisa de alterar a senha no primeiro acesso:
             if st.session_state.get("mudar_senha", False):
                 st.markdown("### 🔑 Alterar Senha Obrigatória")
                 st.info("Este é o seu primeiro acesso. Por favor, defina uma nova palavra-passe segura.")
@@ -100,7 +105,6 @@ if not st.session_state["autenticado"]:
                         st.error("❌ As palavras-passe não coincidem ou estão vazias.")
             
             else:
-                # Ecrã de login normal
                 st.markdown("### 🔒 Acesso Restrito")
                 user_input = st.text_input("Utilizador")
                 senha_input = st.text_input("Palavra-passe", type="password")
@@ -114,9 +118,8 @@ if not st.session_state["autenticado"]:
                         conn.close()
                         
                         if resultado and check_hash(senha_input, resultado[0]):
-                            primeiro_acesso = resultado[1]
+                            primeiro_acesso = resultado[1] if resultado[1] is not None else 0
                             if primeiro_acesso == 1:
-                                # Ativa o modo de alteração obrigatória
                                 st.session_state["mudar_senha"] = True
                                 st.session_state["temp_user"] = user_input
                                 st.rerun()
@@ -277,7 +280,7 @@ with tab5:
     st.subheader("⚙️ Criar Novo Utilizador")
     st.markdown("Adicione novos utilizadores ao portal. Eles receberão uma senha provisória e serão obrigados a alterá-la no primeiro acesso.")
     
-    with st.form("form_novo_usuario"):
+    with st.form("form_new_user"):
         novo_user = st.text_input("Nome de Utilizador (Username)")
         senha_prov = st.text_input("Palavra-passe Provisória", type="password")
         btn_criar = st.form_submit_button("Criar Utilizador")
