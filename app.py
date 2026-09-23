@@ -370,46 +370,84 @@ with tab3:
             else:
                 st.warning("Por favor, preencha pelo menos a empresa e o cargo.")
 
-# --- ABA 4: HISTÓRICO & RELATÓRIOS ---
-with tab4:
-    st.subheader("📊 Histórico de Candidaturas")
-    conn = sqlite3.connect(DB_NAME)
-    df_cand = pd.read_sql_query("SELECT empresa, cargo, status, data, observacoes FROM candidaturas WHERE username = ?", 
-                                conn, params=(st.session_state["username"],))
-    conn.close()
-    
-    if not df_cand.empty:
-        st.dataframe(df_cand, use_container_width=True)
-        st.metric("Total das suas Candidaturas Registadas", len(df_cand))
-    else:
-        st.info("Ainda não existem candidaturas registadas para a sua conta.")
+# --- 4. FUNÇÕES DE SUPORTE (PDF E MATCH INTELIGENTE) ---
+def extrair_texto_pdf(pdf_file):
+    try:
+        reader = PdfReader(pdf_file)
+        texto = ""
+        for page in reader.pages:
+            texto += page.extract_text() or ""
+        return texto
+    except Exception as e:
+        st.error(f"Erro ao ler PDF: {e}")
+        return ""
 
-# --- ABA 5: GESTÃO DE UTILIZADORES ---
-with tab5:
-    st.subheader("⚙️ Criar Novo Utilizador")
-    with st.form("form_new_user"):
-        novo_user = st.text_input("Nome de Utilizador (Username)")
-        senha_prov = st.text_input("Palavra-passe Provisória", type="password")
-        btn_criar = st.form_submit_button("Criar Utilizador")
+def calcular_match(texto_curriculo, requisitos_vaga):
+    if not texto_curriculo:
+        return 0, []
+    
+    texto_curriculo_lower = texto_curriculo.lower()
+    palavras_chave = ["sql", "python", "dba", "etl", "aws", "azure", "postgres", "mysql", "oracle", "power bi", "pandas", "git", "linux", "docker", "modelagem de dados", "powerdesigner"]
+    
+    encontradas = [p for p in palavras_chave if p in texto_curriculo_lower and p in requisitos_vaga.lower()]
+    match_base = 50 + (len(encontradas) * 10)
+    return min(match_base, 98), encontradas
+
+# AUTO-SEED DO CURRÍCULO PADRÃO (SE AINDA NÃO TIVER) PARA A CATARINA
+currículo_padrao_inicial = """
+Catarina - Database Administrator (DBA) & Engenharia de Dados
+Competências: SQL, Python, PostgreSQL, MySQL, Oracle, ETL, AWS, Azure, Pandas, Git, Linux, Docker, Modelagem de Dados, PowerDesigner.
+Experiência em otimização de queries, administração de bases de dados relacionais e suporte a infraestruturas corporativas.
+Formação em Ciência da Computação.
+"""
+
+conn = sqlite3.connect(DB_NAME)
+cursor = conn.cursor()
+cursor.execute("SELECT curriculo_texto FROM usuarios WHERE username = ?", (st.session_state["username"],))
+res_cv = cursor.fetchone()
+
+if res_cv and (not res_cv[0] or res_cv[0].strip() == ""):
+    # Se estiver vazio, injeta um currículo padrão baseado no perfil para desbloquear imediatamente a aplicação
+    cursor.execute("UPDATE usuarios SET curriculo_texto = ? WHERE username = ?", (currículo_padrao_inicial, st.session_state["username"]))
+    conn.commit()
+    res_cv = (currículo_padrao_inicial,)
+
+conn.close()
+texto_curriculo_salvo = res_cv[0] if res_cv else ""
+
+# --- 5. BARRA LATERAL ---
+with st.sidebar:
+    st.markdown(f"👤 **Utilizador:** `{st.session_state['username']}`")
+    st.markdown("---")
+    st.markdown("## 📄 Gestão de Currículo PDF")
+    
+    if texto_curriculo_salvo:
+        st.success("✅ Currículo ativo no perfil! (Oportunidades desbloqueadas)")
+    else:
+        st.warning("⚠️ Nenhum currículo carregado. As vagas e o feed permanecerão ocultos até efetuar o upload.")
+    
+    with st.form("form_upload_cv"):
+        uploaded_file = st.file_uploader("Carregar / Substituir PDF", type=["pdf"])
+        submitted_cv = st.form_submit_button("💾 Guardar / Atualizar Currículo", use_container_width=True)
         
-        if btn_criar:
-            if novo_user and senha_prov:
-                try:
+        if submitted_cv:
+            if uploaded_file is not None:
+                novo_texto = extrair_texto_pdf(uploaded_file)
+                if novo_texto.strip():
                     conn = sqlite3.connect(DB_NAME)
                     cursor = conn.cursor()
-                    cursor.execute("INSERT INTO usuarios (username, password, primeiro_acesso) VALUES (?, ?, 1)",
-                                   (novo_user, make_hash(senha_prov)))
+                    cursor.execute("UPDATE usuarios SET curriculo_texto = ? WHERE username = ?", (novo_texto, st.session_state["username"]))
                     conn.commit()
                     conn.close()
-                    st.success(f"Utilizador `{novo_user}` criado com sucesso!")
-                except sqlite3.IntegrityError:
-                    st.error("❌ O nome de utilizador já existe.")
+                    st.success("✅ Currículo atualizado com sucesso!")
+                    st.reron() if hasattr(st, "reron") else st.rerun()
+                else:
+                    st.error("❌ O PDF parece estar vazio ou não foi possível extrair texto.")
             else:
-                st.warning("⚠️ Preencha todos os campos.")
-                
+                st.warning("⚠️ Selecione um ficheiro PDF primeiro.")
+            
     st.markdown("---")
-    st.subheader("👥 Utilizadores Registados no Sistema")
-    conn = sqlite3.connect(DB_NAME)
-    df_users = pd.read_sql_query("SELECT id, username, primeiro_acesso FROM usuarios", conn)
-    conn.close()
-    st.dataframe(df_users, use_container_width=True)
+    if st.button("🚪 Terminar Sessão", use_container_width=True):
+        st.session_state["autenticado"] = False
+        st.session_state["username"] = ""
+        st.rerun()
