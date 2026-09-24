@@ -265,10 +265,7 @@ else:
             if st.button("🚀 Analisar Currículo e Encontrar Vagas Automáticas"):
                 with st.spinner("🤖 A IA está a ler o seu currículo, a extrair as competências-chave e a mapear oportunidades..."):
                     
-                    # Extração automática de termos técnicos do currículo
                     texto_lower = cv_texto_ativo.lower()
-                    
-                    # Detectar cargo principal implícito no CV
                     cargo_detectado = "Database Administrator" if "dba" in texto_lower or "database" in texto_lower else "Engenheiro de Dados"
                     
                     palavras_cv = re.findall(r'\b[a-zA-ZáéíóúâêîôûãõçÁÉÍÓÚÂÊÎÔÛÃÕÇ]{4,}\b', texto_lower)
@@ -278,7 +275,6 @@ else:
                     st.success(f"✨ **Análise concluída com sucesso!** Perfil detetado: **{cargo_detectado}** | Principais competências extraídas: **{', '.join(top_competencias)}**")
                     st.markdown("---")
                     
-                    # Geração de oportunidades baseadas estritamente na extração do CV
                     vagas_automaticas = [
                         {
                             "empresa": "Join Creative Tech",
@@ -344,7 +340,9 @@ else:
                 with st.expander(f"{row['company']} - {row['role']} ({row['status']})"):
                     st.write(f"**Notas:** {row['notes']}")
                     if row['linkedin_id']:
-                        st.markdown(f"🔗 [Ver publicação]({f'https://www.linkedin.com/feed/update/urn:li:activity:{row[\"linkedin_id\"]}'})")
+                        post_id = row['linkedin_id']
+                        link_pub = f"https://www.linkedin.com/feed/update/urn:li:activity:{post_id}"
+                        st.markdown(f"🔗 [Ver publicação]({link_pub})")
 
     elif menu == "📄 Leitor e Analisador de Currículo (PDF)":
         st.title("📄 Análise e Gestão de Currículo")
