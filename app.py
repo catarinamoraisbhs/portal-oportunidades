@@ -127,7 +127,7 @@ else:
         
     if menu == "🔍 Buscar Vagas & LinkedIn":
         st.title("🔍 Pesquisa Avançada de Vagas no LinkedIn")
-        st.markdown("Gere links aplicando os filtros de **Tipo de Conteúdo (Vagas), Mais Recentes, Últimas 24h e Brasil**.")
+        st.markdown("Gere links aplicando os filtros de **Tipo de Conteúdo (Anúncios de vaga), Mais Recentes, Últimas 24h e Brasil**.")
         
         with st.form("form_busca_avancada"):
             col_b1, col_b2 = st.columns([2, 1])
@@ -140,7 +140,7 @@ else:
             st.write("⚙️ **Filtros Ativos:**")
             col_f1, col_f2, col_f3, col_f4 = st.columns(4)
             with col_f1:
-                tipo_conteudo_vagas = st.selectbox("Tipo de Conteúdo", ["Vagas (Job Postings)", "Todos os Posts"], index=0)
+                tipo_conteudo_vagas = st.selectbox("Tipo de Conteúdo", ["Anúncios de vaga", "Todos os Posts"], index=0)
             with col_f2:
                 filtro_recente = st.checkbox("Ordenar por 'Mais recentes'", value=True)
             with col_f3:
@@ -154,16 +154,17 @@ else:
                 termo_formatado = termo_pesquisa.replace(" ", "%20")
                 
                 if tipo_vaga == "Publicações (Feed com Filtro de Vagas)":
+                    # URL base de publicações do LinkedIn corrigida com o parâmetro ffe=1 para Anúncios de vaga
                     base_url = f"https://www.linkedin.com/search/results/content/?keywords={termo_formatado}"
                     if filtro_brasil:
                         base_url += "&geoUrn=%5B%22106057199%22%5D"
-                    if tipo_conteudo_vagas == "Vagas (Job Postings)":
+                    if tipo_conteudo_vagas == "Anúncios de vaga":
                         base_url += "&ffe=1"
                     if filtro_recente:
                         base_url += "&sortBy=%22date_posted%22"
                     if filtro_24h:
                         base_url += "&datePosted=%22past-24h%22"
-                    st.success(f"Link gerado com o tipo de conteúdo focado em Vagas para: **{termo_pesquisa}**")
+                    st.success(f"Link gerado com o filtro de Anúncios de Vaga para: **{termo_pesquisa}**")
                 else:
                     base_url = f"https://www.linkedin.com/jobs/search/?keywords={termo_formatado}"
                     if filtro_brasil:
@@ -251,10 +252,10 @@ else:
                 col2.success("Excelente compatibilidade técnica")
                 st.markdown("- **Pontos Fortes:** Experiência com ferramentas centrais alinhadas.\n- **Ajuste sugerido:** Enfatizar projetos recentes.")
 
-    # Nova Aba: Agente IA com Delays Humanos Variáveis focado em Vagas
+    # Nova Aba: Agente IA com Delays Humanos Variáveis focado em Anúncios de Vaga
     elif menu == "🤖 Agente IA & Varredura com Delay Humano":
-        st.title("🤖 Agente Autônomo de Varredura Focado em Vagas")
-        st.markdown("Este agente simula o comportamento humano com pausas customizadas (1 a 8 min), aplicando o filtro estrito de **Tipo de Conteúdo: Vagas (`ffe=1`)** nas buscas.")
+        st.title("🤖 Agente Autônomo de Varredura Focado em Anúncios de Vaga")
+        st.markdown("Este agente simula o comportamento humano com pausas customizadas (1 a 8 min), aplicando o filtro exato de **Anúncios de vaga (`ffe=1`)** nas buscas do feed.")
         
         conn = sqlite3.connect("career_portal.db")
         df_resumes = pd.read_sql_query("SELECT id, filename, content FROM resumes WHERE user_id = ?", conn, params=(st.session_state.user_id,))
@@ -277,7 +278,7 @@ else:
             with col_p2:
                 modo_teste_rapido = st.checkbox("Modo de Teste Rápido (Encurtar delays para segundos)", value=True)
                 
-            if st.button("🚀 Iniciar Agente de Varredura Focado em Vagas"):
+            if st.button("🚀 Iniciar Agente de Varredura Focado em Anúncios de Vaga"):
                 if "Rápido" in fator_delay:
                     tempo_base = 3 if modo_teste_rapido else random.randint(60, 180)
                 elif "Moderado" in fator_delay:
@@ -288,7 +289,7 @@ else:
                 status_box = st.empty()
                 progress_bar = st.progress(0)
                 
-                status_box.text("🤖 Agente a inicializar sessão segura com o filtro de Vagas (ffe=1)...")
+                status_box.text("🤖 Agente a inicializar sessão segura com o filtro de Anúncios de Vaga (ffe=1)...")
                 time.sleep(1)
                 progress_bar.progress(25)
                 
@@ -296,7 +297,7 @@ else:
                 time.sleep(min(tempo_base, 4))
                 progress_bar.progress(60)
                 
-                status_box.text("🔎 A extrair publicações restritas ao conteúdo de Vagas no Brasil...")
+                status_box.text("🔎 A extrair publicações restritas a Anúncios de Vaga no Brasil...")
                 time.sleep(1.5)
                 progress_bar.progress(85)
                 
@@ -307,10 +308,10 @@ else:
                 status_box.empty()
                 progress_bar.empty()
                 
-                st.success("🎉 Varredura de Vagas concluída com sucesso pelo Agente!")
+                st.success("🎉 Varredura de Anúncios de Vaga concluída com sucesso pelo Agente!")
                 st.divider()
                 
-                # Links gerados já com o parâmetro de tipo de conteúdo focado em vagas (ffe=1)
+                # Links gerados com o parâmetro correto ffe=1 para Anúncios de Vaga
                 vagas_encontradas_agente = [
                     {"empresa": "Tech Solutions Brasil", "cargo": "Database Administrator Sênior", "nota": "92%", "link": "https://www.linkedin.com/search/results/content/?keywords=DBA&geoUrn=%5B%22106057199%22%5D&ffe=1&sortBy=%22date_posted%22"},
                     {"empresa": "Dados & Inteligência S.A.", "cargo": "Analista de Dados / PostgreSQL", "nota": "88%", "link": "https://www.linkedin.com/search/results/content/?keywords=PostgreSQL&geoUrn=%5B%22106057199%22%5D&ffe=1&sortBy=%22date_posted%22"},
@@ -319,8 +320,8 @@ else:
                 
                 for v in vagas_encontradas_agente:
                     with st.expander(f"🏢 {v['empresa']} - {v['cargo']} (Match: {v['nota']})"):
-                        st.markdown(f"🔗 **[Abrir Post de Vaga Filtrado no LinkedIn]({v['link']})**")
-                        st.write("O agente validou os requisitos desta oportunidade utilizando estritamente o filtro de conteúdo de vagas.")
+                        st.markdown(f"🔗 **[Abrir Anúncio de Vaga Filtrado no LinkedIn]({v['link']})**")
+                        st.write("O agente validou os requisitos desta oportunidade utilizando estritamente o filtro de Anúncios de Vaga do feed.")
 
     elif menu == "🔒 Segurança (Alterar Palavra-passe)":
         st.title("🔒 Alterar Palavra-passe")
