@@ -3,6 +3,8 @@ import streamlit as st
 import pandas as pd
 from pypdf import PdfReader
 import bcrypt
+import re
+from collections import Counter
 
 # Configuração da página do Streamlit
 st.set_page_config(
@@ -110,6 +112,33 @@ def create_user_by_admin(username, password):
     except sqlite3.IntegrityError:
         conn.close()
         return False
+
+# Função Auxiliar para Calcular Compatibilidade de Currículo com a Vaga
+def calcular_compatibilidade(cv_texto, vaga_texto):
+    # Palavras irrelevantes (stop words simples em português/inglês para focar em termos técnicos)
+    stopwords = {"de", "a", "o", "que", "e", "do", "da", "em", "um", "para", "com", "não", "uma", "os", "no", "se", "na", "por", "mais", "as", "dos", "como", "mas", "foi", "ao", "ele", "das", "tem", "às", "seu", "sua", "ou", "ser", "quando", "muito", "há", "nos", "já", "está", "eu", "também", "só", "pelo", "pela", "até", "isso", "she", "he", "the", "and", "to", "of", "a", "in", "for", "is", "on", "that", "by", "this", "with", "i", "you", "it", "not", "or", "be", "are"}
+    
+    def extrair_tokens(texto):
+        palavras = re.findall(r'\b[a-zA-ZáéíóúâêîôûãõçÁÉÍÓÚÂÊÎÔÛÃÕÇ]{3,}\b', texto.lower())
+        return [p for p in palavras if p not in stopwords]
+
+    tokens_vaga = extrair_tokens(vaga_texto)
+    tokens_cv = extrair_tokens(cv_texto)
+    
+    if not tokens_vaga:
+        return 0, [], []
+        
+    set_vaga = set(tokens_vaga)
+    set_cv = set(tokens_cv)
+    
+    comuns = set_vaga.intersection(set_cv)
+    faltantes = set_vaga - set_cv
+    
+    # Pontuação baseada na proporção de palavras-chave da vaga encontradas no CV
+    score = int((len(comuns) / len(set_vaga)) * 100) if set_vaga else 0
+    score = min(max(score, 0), 100)
+    
+    return score, list(comuns), list(faltantes)
 
 # Gestão de Sessão
 if "user_id" not in st.session_state:
@@ -306,23 +335,23 @@ else:
         else:
             st.info("Ainda não tem candidaturas registadas.")
 
-    # Módulo 2: Leitor de Currículos em PDF
+    # Módulo 2: Leitor de Currículos em PDF & Compatibilidade com a Vaga
     elif menu == "📄 Leitor e Analisador de Currículo (PDF)":
-        st.title("📄 Análise e Gestão de Currículo")
-        st.markdown("Carregue o seu currículo em formato PDF para extrair o conteúdo e guardar no seu perfil.")
+        st.title("📄 Análise e Gestão de Currículo & Compatibilidade")
+        st.markdown("Carregue o seu currículo em formato PDF, analise o texto e verifique a compatibilidade com a descrição de uma vaga.")
         
         uploaded_file = st.file_uploader("Carregar Currículo (PDF)", type=["pdf"])
         
+        text_content = ""
         if uploaded_file is not None:
             reader = PdfReader(uploaded_file)
-            text_content = ""
             for page in reader.pages:
                 extracted = page.extract_text()
                 if extracted:
                     text_content += extracted + "\n"
             
             st.subheader("Pré-visualização do Conteúdo Extraído:")
-            st.text_area("Texto do CV", text_content, height=300)
+            st.text_area("Texto do CV", text_content, height=200)
             
             if st.button("Guardar Currículo no Perfil"):
                 conn = sqlite3.connect("career_portal.db")
@@ -336,16 +365,57 @@ else:
                 st.success("Currículo guardado com sucesso na base de dados!")
         
         st.divider()
-        st.subheader("Currículos Guardados")
+        st.subheader("🎯 Analisador de Nota de Compatibilidade com a Vaga")
+        st.markdown("Cole abaixo a descrição da vaga pretendida para calcular a compatibilidade com o currículo carregado ou selecionado:")
+        
+        # Selecionar fonte do currículo para análise (PDF atual ou do banco de dados)
         conn = sqlite3.connect("career_portal.db")
-        df_resumes = pd.read_sql_query(
-            "SELECT id, filename FROM resumes WHERE user_id = ?",
+        df_resumes_db = pd.read_sql_query(
+            "SELECT id, filename, content FROM resumes WHERE user_id = ?",
             conn, params=(st.session_state.user_id,)
         )
         conn.close()
         
-        if not df_resumes.empty:
-            st.dataframe(df_resumes, use_container_width=True)
+        cv_para_analise = text_content
+        
+        if not df_resumes_db.empty:
+            opcoes_cv = ["Usar o PDF carregado agora"] + [f"Guardado: {row['filename']}" for _, row in df_resumes_db.iterrows()]
+            escolha_cv = st.selectbox("Selecione qual currículo utilizar para a comparação:", opcoes_cv)
+            
+            if escolha_cv != "Usar o PDF carregado agora":
+                idx_escolhido = opcoes_cv.index(escolha_cv) - 1
+                cv_para_analise = df_resumes_db.iloc[idx_escolhido]['content']
+
+        descricao_vaga = st.text_area("Cole a Descrição da Vaga Aqui", placeholder="Ex: Requisitos: Experiência com PostgreSQL, Python, Docker, Metodologias Ágeis...")
+        
+        if st.button("Calcular Nota de Compatibilidade"):
+            if not cv_para_analise.strip():
+                st.warning("Por favor, carregue um currículo em PDF primeiro ou selecione um currículo guardado.")
+            elif not descricao_vaga.strip():
+                st.warning("Por favor, insira a descrição da vaga para realizar a análise.")
+            else:
+                score, comuns, faltantes = calcular_compatibilidade(cv_para_analise, descricao_vaga)
+                
+                st.markdown("### 📊 Resultado da Análise")
+                if score >= 75:
+                    st.success(f"**Nota de Compatibilidade: {score}%** - Excelente alinhamento com a vaga!")
+                elif score >= 45:
+                    st.warning(f"**Nota de Compatibilidade: {score}%** - Compatibilidade moderada. Pode melhorar alguns pontos.")
+                else:
+                    st.error(f"**Nota de Compatibilidade: {score}%** - Baixa compatibilidade. Considere ajustar o CV.")
+                
+                col_c1, col_c2 = st.columns(2)
+                with col_c1:
+                    st.write("✅ **Termos em comum encontrados:**")
+                    st.write(", ".join(comuns[:25]) if comuns else "Nenhum termo relevante identificado em comum.")
+                with col_c2:
+                    st.write("❌ **Termos/Palavras-chave da vaga ausentes no CV:**")
+                    st.write(", ".join(faltantes[:25]) if faltantes else "Nenhum termo ausente significativo.")
+
+        st.divider()
+        st.subheader("Currículos Guardados")
+        if not df_resumes_db.empty:
+            st.dataframe(df_resumes_db[["id", "filename"]], use_container_width=True)
         else:
             st.info("Ainda não guardou nenhum currículo.")
 
