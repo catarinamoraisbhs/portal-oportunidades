@@ -128,27 +128,46 @@ else:
         st.session_state.username = ""
         st.rerun()
         
-    # Módulo Novo: Buscar Vagas & LinkedIn
+    # Módulo de Busca com Filtros Avançados
     if menu == "🔍 Buscar Vagas & LinkedIn":
-        st.title("🔍 Pesquisa e Acesso Direto a Vagas no LinkedIn")
-        st.markdown("Encontre novas oportunidades profissionais ou aceda rapidamente a publicações de recrutamento utilizando o ID do post.")
+        st.title("🔍 Pesquisa Avançada de Vagas no LinkedIn")
+        st.markdown("Filtre as melhores oportunidades por tipo de origem e recência (últimas 24 horas).")
         
-        col_busca1, col_busca2 = st.columns([2, 1])
-        with col_busca1:
-            termo_pesquisa = st.text_input("Cargo, Tecnologia ou Palavra-chave para a Vaga", placeholder="Ex: DBA, Engenharia de Dados, Python...")
-        with col_busca2:
-            st.markdown("<br>", unsafe_allow_html=True)
-            btn_pesquisar = st.button("Pesquisar Vagas no LinkedIn")
+        with st.form("form_busca_avancada"):
+            col_b1, col_b2 = st.columns([2, 1])
+            with col_b1:
+                termo_pesquisa = st.text_input("Cargo ou Palavra-chave", placeholder="Ex: DBA, Engenharia de Dados...")
+            with col_b2:
+                tipo_vaga = st.selectbox("Origem das Vagas", ["Publicações de Pessoas (Feed)", "Aba de Vagas Oficiais (Jobs)"])
+                
+            filtro_24h = st.checkbox("Filtrar apenas vagas publicadas nas últimas 24 horas")
             
-        if btn_pesquisar and termo_pesquisa:
-            termo_formatado = termo_pesquisa.replace(" ", "%20")
-            url_pesquisa_linkedin = f"https://www.linkedin.com/search/results/content/?keywords={termo_formatado}"
-            st.success(f"Link gerado com sucesso para a pesquisa de: **{termo_pesquisa}**")
-            st.markdown(f"🔗 [Clique aqui para abrir os resultados da pesquisa no LinkedIn]({url_pesquisa_linkedin})", unsafe_allow_html=True)
+            btn_pesquisar = st.form_submit_button("Gerar Link de Pesquisa Direta")
+            
+            if btn_pesquisar and termo_pesquisa:
+                termo_formatado = termo_pesquisa.replace(" ", "%20")
+                
+                # Construção dos filtros URL do LinkedIn
+                if tipo_vaga == "Publicações de Pessoas (Feed)":
+                    # datePosted="r86400" filtra as últimas 24 horas no conteúdo/feed
+                    base_url = f"https://www.linkedin.com/search/results/content/?keywords={termo_formatado}"
+                    if filtro_24h:
+                        base_url += "&datePosted=%22r86400%22"
+                    st.success(f"Link gerado para publicações de pessoas sobre: **{termo_pesquisa}**")
+                else:
+                    # Aba de Vagas (Jobs) com filtro opcional de 24h (f_TPR=r86400)
+                    base_url = f"https://www.linkedin.com/jobs/search/?keywords={termo_formatado}"
+                    if filtro_24h:
+                        base_url += "&f_TPR=r86400"
+                    st.success(f"Link gerado para a Aba de Vagas Oficiais sobre: **{termo_pesquisa}**")
+                    
+                st.markdown(f"🔗 [Clique aqui para abrir os resultados no LinkedIn]({base_url})", unsafe_allow_html=True)
+            elif btn_pesquisar:
+                st.warning("Por favor, insira uma palavra-chave para pesquisar.")
             
         st.divider()
         st.subheader("Acesso Direto por ID de Publicação (Activity URN)")
-        st.markdown("Se tem o link direto ou o ID numérico de uma publicação de vaga no LinkedIn, insira-o abaixo para abrir o post imediatamente:")
+        st.markdown("Se tem o ID numérico de um post específico do LinkedIn, insira-o abaixo para aceder instantaneamente:")
         
         col_id1, col_id2 = st.columns([2, 1])
         with col_id1:
