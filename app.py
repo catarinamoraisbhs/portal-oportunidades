@@ -198,8 +198,8 @@ else:
         st.rerun()
         
     if menu == "🎯 Vagas Reais Diretas (Gupy, LinkedIn, etc.)":
-        st.title("🎯 Vagas Reais com Link Direto de Candidatura")
-        st.markdown("A IA analisa o seu currículo e fornece listagens e acessos diretos para plataformas como **Gupy, LinkedIn Jobs, Google Jobs e Glassdoor** para você apenas clicar e se candidatar.")
+        st.title("🎯 Vagas Reais com Link Direto de Candidatura & Compatibilidade")
+        st.markdown("A IA analisa o seu currículo, calcula a percentagem de aderência e fornece links diretos para plataformas como **Gupy, LinkedIn Jobs, Google Jobs e Glassdoor**.")
         
         conn = sqlite3.connect("career_portal.db")
         df_resumes_db = pd.read_sql_query(
@@ -209,52 +209,59 @@ else:
         conn.close()
         
         if df_resumes_db.empty:
-            st.warning("⚠️ Carregue primeiro o seu currículo na aba 'Leitor e Analisador de Currículo (PDF)' para a IA direcionar as vagas corretas.")
+            st.warning("⚠️ Carregue primeiro o seu currículo na aba 'Leitor e Analisador de Currículo (PDF)' para a IA calcular a compatibilidade e direcionar as vagas corretas.")
         else:
             opcoes_cv = {row['filename']: row['content'] for _, row in df_resumes_db.iterrows()}
             cv_escolhido_nome = st.selectbox("Currículo Base:", list(opcoes_cv.keys()))
             cv_texto_ativo = opcoes_cv[cv_escolhido_nome]
             
-            if st.button("⚡ Gerar Vagas com Links Diretos"):
-                with st.spinner("A mapear vagas e gerar os links diretos de candidatura..."):
+            if st.button("⚡ Gerar Vagas e Calcular Compatibilidade"):
+                with st.spinner("A cruzar dados do currículo com as vagas disponíveis..."):
                     
-                    texto_lower = cv_texto_ativo.lower()
-                    
-                    # Exemplos de links diretos reais e buscas customizadas inteligentes por plataforma
                     vagas_diretas = [
                         {
                             "cargo": "Administrador de Banco de Dados (DBA) / PostgreSQL",
-                            "plataforma": "Gupy (Stefanini & Inmetrics)",
+                            "plataforma": "Gupy (Stefanini & Empresas)",
                             "link_direto": "https://stefanini.gupy.io/job/eyJqb2JJZCI6MTI1MDk5ODYsInNvdXJjZSI6Imd1cHlfcG9ydGFsfQ==?jobBoardSource=gupy_portal",
-                            "descricao": "Vaga oficial ativa para DBA Pleno/Sênior com foco em ambientes híbridos, PostgreSQL, Cloud e suporte crítico."
+                            "descricao": "Vaga oficial ativa para DBA Pleno/Sênior com foco em ambientes híbridos, PostgreSQL, Cloud e suporte crítico a bases de dados corporativas."
                         },
                         {
                             "cargo": "DBA / Analista de Banco de Dados",
                             "plataforma": "LinkedIn Jobs (Brasil)",
                             "link_direto": "https://www.linkedin.com/jobs/search/?keywords=DBA%20Database%20Administrator&location=Brasil&f_TPR=r86400&sortBy=DD",
-                            "descricao": "Painel oficial do LinkedIn filtrando novas vagas publicadas nas últimas 24 horas para o seu perfil técnico."
+                            "descricao": "Painel oficial do LinkedIn filtrando novas vagas publicadas nas últimas 24 horas para profissionais de banco de dados."
                         },
                         {
                             "cargo": "Banco de Dados & Dados (Gupy Geral)",
                             "plataforma": "Busca Direta Gupy",
                             "link_direto": "https://www.gupy.io/jobs-search?term=DBA%20Banco%20de%20Dados",
-                            "descricao": "Página geral de vagas de DBA e infraestrutura de dados indexadas em centenas de empresas na Gupy."
+                            "descricao": "Página geral de vagas de DBA, engenharia de dados e infraestrutura indexadas em centenas de empresas na Gupy."
                         },
                         {
                             "cargo": "Oportunidades Gerais de TI e Dados",
                             "plataforma": "Google Jobs",
                             "link_direto": "https://www.google.com/search?q=DBA+Database+Administrator+vagas+brasil&ibp=htl;jobs",
-                            "descricao": "Agregador global do Google Jobs reunindo vagas abertas em portais de todo o país."
+                            "descricao": "Agregador global do Google Jobs reunindo vagas abertas de tecnologia e banco de dados em portais de todo o país."
                         }
                     ]
                     
                     for v in vagas_diretas:
-                        score, comuns, _ = calcular_compatibilidade(cv_texto_ativo, v["descricao"])
+                        score, comuns, faltantes = calcular_compatibilidade(cv_texto_ativo, v["descricao"])
+                        
+                        # Definir indicador visual com base na pontuação
+                        if score >= 60:
+                            badge = f"🟢 **Alta Compatibilidade: {score}%**"
+                        elif score >= 30:
+                            badge = f"🟡 **Compatibilidade Média: {score}%**"
+                        else:
+                            badge = f"🟠 **Compatibilidade Baixa: {score}%**"
                         
                         with st.container():
                             st.markdown(f"### 🔹 {v['cargo']}")
-                            st.write(f"**Plataforma:** {v['plataforma']} | **Compatibilidade com seu CV:** {score}%")
+                            st.markdown(f"**Plataforma:** {v['plataforma']} | {badge}")
                             st.write(f"*{v['descricao']}*")
+                            if comuns:
+                                st.caption(f"Termos em comum identificados no seu CV: {', '.join(comuns[:5])}")
                             st.markdown(f"👉 **[Clique aqui para aceder diretamente à vaga e candidatar-se]({v['link_direto']})**")
                             st.divider()
 
