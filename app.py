@@ -128,7 +128,7 @@ else:
         st.session_state.username = ""
         st.rerun()
         
-    # Módulo de Busca com os Filtros Perfeitos (Incluindo Publicações)
+    # Módulo de Busca Otimizado
     if menu == "🔍 Buscar Vagas & LinkedIn":
         st.title("🔍 Pesquisa Avançada de Vagas no LinkedIn")
         st.markdown("Gere links aplicando rigorosamente os filtros de **Publicações, Mais Recentes, Últimas 24h, Anúncios de Vaga e Brasil**.")
@@ -158,12 +158,11 @@ else:
                 termo_formatado = termo_pesquisa.replace(" ", "%20")
                 
                 if tipo_vaga == "Publicações de Pessoas (Feed Completo)":
-                    # URL base de conteúdo/feed restrita ao Brasil (geoUrn)
+                    # URL ajustada com os parâmetros exatos aceites pela engine de pesquisa de conteúdo do LinkedIn
                     base_url = f"https://www.linkedin.com/search/results/content/?keywords={termo_formatado}&geoUrn=%5B%22106057199%22%5D"
                     
-                    # Adicionando os parâmetros exatos de cada botão verde da imagem
                     if filtro_publicacoes:
-                        base_url += "&origin=FACETED_SEARCH"
+                        base_url += "&resultType=CONTENT"
                     if filtro_recente:
                         base_url += "&sortBy=%22date_posted%22"
                     if filtro_24h:
