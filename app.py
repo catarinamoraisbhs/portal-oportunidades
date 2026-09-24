@@ -289,7 +289,6 @@ else:
         st.title("🤖 Agente IA & Varredura Inteligente de Vagas")
         st.markdown("A IA analisa o seu currículo guardado, varre o mercado com o filtro restrito de **Vagas** e calcula automaticamente a nota de compatibilidade para cada oportunidade encontrada.")
         
-        # Obter currículos guardados do utilizador na BD
         conn = sqlite3.connect("career_portal.db")
         df_resumes_db = pd.read_sql_query(
             "SELECT id, filename, content FROM resumes WHERE user_id = ?",
@@ -315,8 +314,6 @@ else:
                         termo_formatado = cargo_busca.replace(" ", "%20")
                         link_base_ia = f"https://www.linkedin.com/search/results/content/?keywords={termo_formatado}&origin=FACETED_SEARCH&geoUrn=%5B%22106057199%22%5D&contentType=%22jobs%22&sortBy=%22date_posted%22&datePosted=%22past-24h%22"
                         
-                        # Simulação inteligente baseada em vagas típicas combinadas com o perfil e texto do CV do utilizador
-                        # Geramos descrições de exemplo para calcular a compatibilidade real baseada no seu CV
                         vagas_simuladas = [
                             {
                                 "empresa": "Tech Solutions Brasil",
@@ -344,14 +341,13 @@ else:
                         for vaga in vagas_simuladas:
                             score, comuns, faltantes = calcular_compatibilidade(cv_texto_ativo, vaga["descricao"])
                             
-                            # Cor de destaque conforme a compatibilidade
                             cor_badge = "🟢" if score >= 75 else ("🟡" if score >= 45 else "🔴")
                             
                             with st.expander(f"{cor_badge} {vaga['empresa']} - {vaga['cargo']} | Nota de Compatibilidade: {score}%"):
                                 col_v1, col_v2 = st.columns([3, 1])
                                 with col_v1:
                                     st.write(f"**Descrição da Vaga:** {vaga['descricao']}")
-                                    st.write(🔹 **Termos em comum identificados no seu CV:** {', '.join(comuns[:10]) if comuns else 'Nenhum destaque direto'})
+                                    st.write(f"🔹 **Termos em comum identificados no seu CV:** {', '.join(comuns[:10]) if comuns else 'Nenhum destaque direto'}")
                                 with col_v2:
                                     st.metric(label="Match com o seu CV", value=f"{score}%")
                                     
