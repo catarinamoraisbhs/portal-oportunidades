@@ -318,20 +318,17 @@ else:
                             {
                                 "empresa": "Tech Solutions Brasil",
                                 "cargo": f"{cargo_busca} Sênior",
-                                "descricao": f"Procuramos profissional com forte experiência em {cargo_busca}, otimização de consultas, PostgreSQL, metodologias ágeis e resolução de problemas complexos de infraestrutura e dados.",
-                                "activity_id": "7234567890123456781"
+                                "descricao": f"Procuramos profissional com forte experiência em {cargo_busca}, otimização de consultas, PostgreSQL, metodologias ágeis e resolução de problemas complexos de infraestrutura e dados."
                             },
                             {
                                 "empresa": "Inovação Digital Ltda",
                                 "cargo": f"Analista / {cargo_busca} Pleno",
-                                "descricao": f"Buscamos especialista em {cargo_busca} para atuar em projetos de migração de bases de dados, scripts de automação e integração contínua.",
-                                "activity_id": "7234567890123456782"
+                                "descricao": f"Buscamos especialista em {cargo_busca} para atuar em projetos de migração de bases de dados, scripts de automação e integração contínua."
                             },
                             {
                                 "empresa": "Dados & Inteligência S.A.",
                                 "cargo": f"Engenheiro de Dados & {cargo_busca}",
-                                "descricao": f"Oportunidade para atuar com arquitetura de dados, modelagem relacional, SQL avançado, Python e suporte a ambientes de alta disponibilidade.",
-                                "activity_id": "7234567890123456783"
+                                "descricao": f"Oportunidade para atuar com arquitetura de dados, modelagem relacional, SQL avançado, Python e suporte a ambientes de alta disponibilidade."
                             }
                         ]
                         
@@ -351,11 +348,7 @@ else:
                                 with col_v2:
                                     st.metric(label="Match com o seu CV", value=f"{score}%")
                                     
-                                link_post_direto = f"https://www.linkedin.com/feed/update/urn:li:activity:{vaga['activity_id']}"
-                                link_pesquisa_filtro = link_base_ia
-                                
-                                st.markdown(f"🔗 **[Abrir Anúncio de Vaga no LinkedIn]({link_post_direto})**")
-                                st.markdown(f"🔍 **[Ver listagem completa filtrada para '{cargo_busca}']({link_pesquisa_filtro})**")
+                                st.markdown(f"🔗 **[Abrir Listagem Filtrada de Vagas no LinkedIn]({link_base_ia})**")
 
     # Módulo 1: Gestão de Candidaturas
     elif menu == "🎯 Gestão de Candidaturas":
