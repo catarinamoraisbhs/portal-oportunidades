@@ -16,14 +16,21 @@ def init_db():
     conn = sqlite3.connect("career_portal.db")
     cursor = conn.cursor()
     
-    # Tabela de Utilizadores
+    # Tabela de Utilizadores com campo para forçar alteração de palavra-passe no primeiro login
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL
+            password TEXT NOT NULL,
+            must_change_password INTEGER DEFAULT 0
         )
     """)
+    
+    # Garantir compatibilidade se a tabela já existir sem a coluna nova
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN must_change_password INTEGER DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass
     
     # Tabela de Candidaturas e Posts do LinkedIn
     cursor.execute("""
@@ -52,11 +59,11 @@ def init_db():
     
     conn.commit()
     
-    # Criar utilizador padrão 'catarina' com senha 'admin123' se não existir
+    # Criar utilizador administrador padrão 'catarina' com senha 'admin123' se não existir
     cursor.execute("SELECT id FROM users WHERE username = 'catarina'")
     if not cursor.fetchone():
         hashed_default = bcrypt.hashpw('admin123'.encode('utf-8'), bcrypt.gensalt())
-        cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", ('catarina', hashed_default))
+        cursor.execute("INSERT INTO users (username, password, must_change_password) VALUES (?, ?, ?)", ('catarina', hashed_default, 0))
         conn.commit()
         
     conn.close()
@@ -73,62 +80,109 @@ def check_password(password, hashed):
 def login_user(username, password):
     conn = sqlite3.connect("career_portal.db")
     cursor = conn.cursor()
-    cursor.execute("SELECT id, password FROM users WHERE username = ?", (username,))
+    cursor.execute("SELECT id, password, must_change_password FROM users WHERE username = ?", (username,))
     user = cursor.fetchone()
     conn.close()
     if user and check_password(password, user[1]):
-        return user[0]
-    return None
+        return user[0], user[2] # Retorna ID e flag de alteração obrigatória
+    return None, None
 
-def update_password(user_id, new_password):
+def update_password(user_id, new_password, clear_flag=True):
     conn = sqlite3.connect("career_portal.db")
     cursor = conn.cursor()
     hashed = hash_password(new_password)
-    cursor.execute("UPDATE users SET password = ? WHERE id = ?", (hashed, user_id))
+    if clear_flag:
+        cursor.execute("UPDATE users SET password = ?, must_change_password = 0 WHERE id = ?", (hashed, user_id))
+    else:
+        cursor.execute("UPDATE users SET password = ? WHERE id = ?", (hashed, user_id))
     conn.commit()
     conn.close()
+
+def create_user_by_admin(username, password):
+    conn = sqlite3.connect("career_portal.db")
+    cursor = conn.cursor()
+    try:
+        hashed = hash_password(password)
+        cursor.execute("INSERT INTO users (username, password, must_change_password) VALUES (?, ?, 1)", (username, hashed))
+        conn.commit()
+        conn.close()
+        return True
+    except sqlite3.IntegrityError:
+        conn.close()
+        return False
 
 # Gestão de Sessão
 if "user_id" not in st.session_state:
     st.session_state.user_id = None
 if "username" not in st.session_state:
     st.session_state.username = ""
+if "must_change_password" not in st.session_state:
+    st.session_state.must_change_password = 0
 
 # Ecrã de Autenticação (Login)
 if st.session_state.user_id is None:
     st.title("💼 Portal de Gestão de Carreira")
-    st.subheader("Faça login para aceder às suas candidaturas e currículos.")
+    st.subheader("Faça login para aceder ao sistema.")
     
     st.markdown("### Aceder à Conta")
     login_user_input = st.text_input("Utilizador", key="login_user")
     login_pass_input = st.text_input("Palavra-passe", type="password", key="login_pass")
     
     if st.button("Entrar"):
-        uid = login_user(login_user_input, login_pass_input)
-        if uid:
+        uid, must_change = login_user(login_user_input, login_pass_input)
+        if uid is not None:
             st.session_state.user_id = uid
             st.session_state.username = login_user_input
+            st.session_state.must_change_password = must_change
             st.success("Login efetuado com sucesso!")
             st.rerun()
         else:
             st.error("Utilizador ou palavra-passe incorretos.")
 
+# Ecrã Obrigatório de Alteração de Palavra-passe no Primeiro Acesso
+elif st.session_state.must_change_password == 1:
+    st.title("🔒 Alteração Obrigatória de Palavra-passe")
+    st.warning("Este é o seu primeiro acesso. Por razões de segurança, deve definir uma nova palavra-passe.")
+    
+    with st.form("form_primeiro_acesso"):
+        nova_senha = st.text_input("Nova Palavra-passe", type="password")
+        confirma_senha = st.text_input("Confirmar Nova Palavra-passe", type="password")
+        submit_novo = st.form_submit_button("Guardar e Entrar no Portal")
+        
+        if submit_novo:
+            if not nova_senha or not confirma_senha:
+                st.warning("Preencha todos os campos.")
+            elif nova_senha != confirma_senha:
+                st.error("As palavras-passe não coincidem.")
+            else:
+                update_password(st.session_state.user_id, nova_senha, clear_flag=True)
+                st.session_state.must_change_password = 0
+                st.success("Palavra-passe atualizada com sucesso!")
+                st.rerun()
+
 else:
-    # Barra Lateral de Navegação
-    st.sidebar.title(f"Olá, {st.session_state.username}!")
-    menu = st.sidebar.radio("Navegação", [
+    # Definição dos itens do menu com base nas permissões (Apenas a 'catarina' vê a Gestão de Utilizadores)
+    lista_menu = [
         "🔍 Buscar Vagas & LinkedIn", 
         "🎯 Gestão de Candidaturas", 
         "📄 Leitor e Analisador de Currículo (PDF)", 
         "🔒 Segurança (Alterar Palavra-passe)"
-    ])
+    ]
+    
+    if st.session_state.username == "catarina":
+        lista_menu.append("👥 Gestão de Utilizadores (Admin)")
+
+    # Barra Lateral de Navegação
+    st.sidebar.title(f"Olá, {st.session_state.username}!")
+    menu = st.sidebar.radio("Navegação", lista_menu)
     
     if st.sidebar.button("Terminar Sessão"):
         st.session_state.user_id = None
         st.session_state.username = ""
+        st.session_state.must_change_password = 0
         st.rerun()
         
-    # Módulo de Busca Avançada Corrigido
+    # Módulo de Busca Avançada
     if menu == "🔍 Buscar Vagas & LinkedIn":
         st.title("🔍 Pesquisa Avançada de Vagas no LinkedIn")
         st.markdown("Gere links aplicando rigorosamente todos os filtros: **Publicações, Mais Recentes, Últimas 24h, Tipo de Conteúdo (Vagas) e Brasil**.")
@@ -158,7 +212,6 @@ else:
                 termo_formatado = termo_pesquisa.replace(" ", "%20")
                 
                 if tipo_vaga == "Publicações (Feed com Filtro)":
-                    # URL corrigida utilizando o parâmetro exato de contentType para publicações de vagas no LinkedIn
                     base_url = f"https://www.linkedin.com/search/results/content/?keywords={termo_formatado}&origin=FACETED_SEARCH"
                     
                     if filtro_brasil:
@@ -321,7 +374,38 @@ else:
                     conn.close()
                     
                     if check_password(senha_atual, db_pass):
-                        update_password(st.session_state.user_id, nova_senha)
+                        update_password(st.session_state.user_id, nova_senha, clear_flag=False)
                         st.success("Palavra-passe alterada com sucesso!")
                     else:
                         st.error("A palavra-passe atual está incorreta.")
+
+    # Módulo 4: Gestão de Utilizadores (Exclusivo para o Admin 'catarina')
+    elif menu == "👥 Gestão de Utilizadores (Admin)":
+        st.title("👥 Gestão de Utilizadores")
+        st.markdown("Área restrita de administração. Registe novos utilizadores no sistema.")
+        
+        with st.form("form_novo_utilizador"):
+            novo_user = st.text_input("Nome de Utilizador")
+            temp_pass = st.text_input("Palavra-passe Temporária", type="password")
+            submit_criacao = st.form_submit_button("Criar Utilizador")
+            
+            if submit_criacao:
+                if not novo_user or not temp_pass:
+                    st.warning("Preencha todos os campos para criar o utilizador.")
+                else:
+                    sucesso = create_user_by_admin(novo_user, temp_pass)
+                    if sucesso:
+                        st.success(f"Utilizador '{novo_user}' criado com sucesso! No primeiro login, será obrigatório alterar a palavra-passe.")
+                    else:
+                        st.error(f"O nome de utilizador '{novo_user}' já existe. Escolha outro.")
+        
+        st.divider()
+        st.subheader("Utilizadores Registados no Sistema")
+        conn = sqlite3.connect("career_portal.db")
+        df_users = pd.read_sql_query("SELECT id, username, must_change_password FROM users", conn)
+        conn.close()
+        
+        if not df_users.empty:
+            # Renomear colunas para melhor visualização
+            df_users.columns = ["ID", "Utilizador", "Primeiro Acesso Pendente"]
+            st.dataframe(df_users, use_container_width=True)
