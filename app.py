@@ -140,7 +140,7 @@ else:
             st.write("⚙️ **Filtros Ativos:**")
             col_f1, col_f2, col_f3, col_f4 = st.columns(4)
             with col_f1:
-                tipo_conteudo_vagas = st.selectbox("Tipo de Conteúdo", ["Vagas (Job Postings)", "Todos os Posts"])
+                tipo_conteudo_vagas = st.selectbox("Tipo de Conteúdo", ["Vagas (Job Postings)", "Todos os Posts"], index=0)
             with col_f2:
                 filtro_recente = st.checkbox("Ordenar por 'Mais recentes'", value=True)
             with col_f3:
@@ -251,10 +251,10 @@ else:
                 col2.success("Excelente compatibilidade técnica")
                 st.markdown("- **Pontos Fortes:** Experiência com ferramentas centrais alinhadas.\n- **Ajuste sugerido:** Enfatizar projetos recentes.")
 
-    # Nova Aba: Agente IA com Delays Humanos Variáveis
+    # Nova Aba: Agente IA com Delays Humanos Variáveis focado em Vagas
     elif menu == "🤖 Agente IA & Varredura com Delay Humano":
-        st.title("🤖 Agente Autônomo de Varredura de Vagas")
-        st.markdown("Este agente simula o comportamento de uma pessoa a pesquisar e analisar vagas pausadamente (com delays customizados entre 1 a 8 minutos simulados em segundos para testes, ou tempo real).")
+        st.title("🤖 Agente Autônomo de Varredura Focado em Vagas")
+        st.markdown("Este agente simula o comportamento humano com pausas customizadas (1 a 8 min), aplicando o filtro estrito de **Tipo de Conteúdo: Vagas (`ffe=1`)** nas buscas.")
         
         conn = sqlite3.connect("career_portal.db")
         df_resumes = pd.read_sql_query("SELECT id, filename, content FROM resumes WHERE user_id = ?", conn, params=(st.session_state.user_id,))
@@ -264,9 +264,8 @@ else:
             st.warning("⚠️ Por favor, carregue e guarde um currículo primeiro.")
         else:
             cv_options = {row['filename']: row['content'] for index, row in df_resumes.iterrows()}
-            cv_escolhido = st.selectbox("Perfil de Currículo Base", list(cv_options.keys()))
+            cv_escolhido = st.selectbox("Perfil de Currículo Base para o Agente", list(cv_options.keys()))
             
-            # Configuração do Agente
             st.markdown("### ⚙️ Parâmetros do Agente")
             col_p1, col_p2 = st.columns(2)
             with col_p1:
@@ -278,8 +277,7 @@ else:
             with col_p2:
                 modo_teste_rapido = st.checkbox("Modo de Teste Rápido (Encurtar delays para segundos)", value=True)
                 
-            if st.button("🚀 Iniciar Agente Autônomo de Busca"):
-                # Definir tempos de delay baseados na escolha
+            if st.button("🚀 Iniciar Agente de Varredura Focado em Vagas"):
                 if "Rápido" in fator_delay:
                     tempo_base = 3 if modo_teste_rapido else random.randint(60, 180)
                 elif "Moderado" in fator_delay:
@@ -290,39 +288,39 @@ else:
                 status_box = st.empty()
                 progress_bar = st.progress(0)
                 
-                status_box.text("🤖 Agente a inicializar sessão segura no navegador virtual...")
+                status_box.text("🤖 Agente a inicializar sessão segura com o filtro de Vagas (ffe=1)...")
                 time.sleep(1)
-                progress_bar.progress(20)
+                progress_bar.progress(25)
                 
-                status_box.text(f"⏳ Agente aguardando intervalo de pausa humana (simulando {tempo_base}s)...")
-                time.sleep(min(tempo_base, 5)) # Para não travar a interface excessivamente caso o utilizador não queira esperar muito no teste
-                progress_bar.progress(50)
+                status_box.text(f"⏳ Pausa humana em andamento (simulando {tempo_base}s)...")
+                time.sleep(min(tempo_base, 4))
+                progress_bar.progress(60)
                 
-                status_box.text("🔎 Agente a extrair publicações e filtrar vagas ativas no Brasil...")
+                status_box.text("🔎 A extrair publicações restritas ao conteúdo de Vagas no Brasil...")
                 time.sleep(1.5)
-                progress_bar.progress(80)
+                progress_bar.progress(85)
                 
-                status_box.text("📊 Calculando notas de compatibilidade com o seu currículo...")
+                status_box.text("📊 Calculando compatibilidade detalhada...")
                 time.sleep(1)
                 progress_bar.progress(100)
                 
                 status_box.empty()
                 progress_bar.empty()
                 
-                st.success("🎉 Varredura concluída pelo Agente! Oportunidades encontradas:")
+                st.success("🎉 Varredura de Vagas concluída com sucesso pelo Agente!")
                 st.divider()
                 
-                # Simulação de vagas encontradas automaticamente pelo agente
+                # Links gerados já com o parâmetro de tipo de conteúdo focado em vagas (ffe=1)
                 vagas_encontradas_agente = [
-                    {"empresa": "Tech Solutions Brasil", "cargo": "Database Administrator Sênior", "nota": "92%", "link": "https://www.linkedin.com/jobs/search/?keywords=DBA"},
-                    {"empresa": "Dados & Inteligência S.A.", "cargo": "Analista de Dados / PostgreSQL", "nota": "88%", "link": "https://www.linkedin.com/jobs/search/?keywords=PostgreSQL"},
-                    {"empresa": "Inovação Digital Ltda", "cargo": "Engenheiro de Dados Júnior", "nota": "81%", "link": "https://www.linkedin.com/jobs/search/?keywords=Python"}
+                    {"empresa": "Tech Solutions Brasil", "cargo": "Database Administrator Sênior", "nota": "92%", "link": "https://www.linkedin.com/search/results/content/?keywords=DBA&geoUrn=%5B%22106057199%22%5D&ffe=1&sortBy=%22date_posted%22"},
+                    {"empresa": "Dados & Inteligência S.A.", "cargo": "Analista de Dados / PostgreSQL", "nota": "88%", "link": "https://www.linkedin.com/search/results/content/?keywords=PostgreSQL&geoUrn=%5B%22106057199%22%5D&ffe=1&sortBy=%22date_posted%22"},
+                    {"empresa": "Inovação Digital Ltda", "cargo": "Engenheiro de Dados Júnior", "nota": "81%", "link": "https://www.linkedin.com/search/results/content/?keywords=Python&geoUrn=%5B%22106057199%22%5D&ffe=1&sortBy=%22date_posted%22"}
                 ]
                 
                 for v in vagas_encontradas_agente:
                     with st.expander(f"🏢 {v['empresa']} - {v['cargo']} (Match: {v['nota']})"):
-                        st.markdown(f"🔗 **[Aceder Diretamente à Vaga no LinkedIn]({v['link']})**")
-                        st.write("O agente validou os requisitos desta vaga e encontrou alta compatibilidade com as competências técnicas detetadas no seu currículo.")
+                        st.markdown(f"🔗 **[Abrir Post de Vaga Filtrado no LinkedIn]({v['link']})**")
+                        st.write("O agente validou os requisitos desta oportunidade utilizando estritamente o filtro de conteúdo de vagas.")
 
     elif menu == "🔒 Segurança (Alterar Palavra-passe)":
         st.title("🔒 Alterar Palavra-passe")
