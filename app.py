@@ -246,7 +246,7 @@ else:
 
     elif menu == "🤖 IA & Varredura de Vagas (Auto)":
         st.title("🤖 IA & Varredura 100% Automática Baseada no Currículo")
-        st.markdown("A IA analisa o seu currículo guardado, identifica automaticamente a sua área e competências principais, e gera as recomendações e links de vagas sem que precise de digitar nada.")
+        st.markdown("A IA lê o seu currículo, mapeia todas as suas competências e gera opções de vagas com acesso direto tanto às **Publicações de Recrutadores** quanto às **Vagas Oficiais do LinkedIn**.")
         
         conn = sqlite3.connect("career_portal.db")
         df_resumes_db = pd.read_sql_query(
@@ -262,50 +262,69 @@ else:
             cv_escolhido_nome = st.selectbox("Selecione o Currículo Base para Análise Automática:", list(opcoes_cv.keys()))
             cv_texto_ativo = opcoes_cv[cv_escolhido_nome]
             
-            if st.button("🚀 Analisar Currículo e Encontrar Vagas Automáticas"):
-                with st.spinner("🤖 A IA está a ler o seu currículo, a extrair as competências-chave e a mapear oportunidades..."):
+            if st.button("🚀 Analisar Currículo e Mapear Vagas"):
+                with st.spinner("🤖 A IA está a processar o seu currículo e a criar os filtros inteligentes..."):
                     
                     texto_lower = cv_texto_ativo.lower()
-                    cargo_detectado = "Database Administrator" if "dba" in texto_lower or "database" in texto_lower else "Engenheiro de Dados"
+                    
+                    # Detectar múltiplos termos para abranger todo tipo de vaga compatível
+                    cargos_possiveis = []
+                    if "dba" in texto_lower or "database" in texto_lower:
+                        cargos_possiveis.append("DBA")
+                    if "postgresql" in texto_lower or "sql" in texto_lower:
+                        cargos_possiveis.append("PostgreSQL")
+                    if "dados" in texto_lower or "analista" in texto_lower:
+                        cargos_possiveis.append("Analista de Dados")
+                    if not cargos_possiveis:
+                        cargos_possiveis = ["Tecnologia", "Dados"]
                     
                     palavras_cv = re.findall(r'\b[a-zA-ZáéíóúâêîôûãõçÁÉÍÓÚÂÊÎÔÛÃÕÇ]{4,}\b', texto_lower)
                     contagem_cv = Counter(palavras_cv)
-                    top_competencias = [palavra for palavra, freq in contagem_cv.most_common(4)]
+                    top_competencias = [palavra for palavra, freq in contagem_cv.most_common(3)]
                     
-                    st.success(f"✨ **Análise concluída com sucesso!** Perfil detetado: **{cargo_detectado}** | Principais competências extraídas: **{', '.join(top_competencias)}**")
+                    st.success(f"✨ **Análise concluída!** Focos detetados no seu CV: **{', '.join(cargos_possiveis)}**")
                     st.markdown("---")
                     
+                    # Gerar blocos de vagas abrangentes baseados no perfil
                     vagas_automaticas = [
                         {
-                            "empresa": "Join Creative Tech",
-                            "cargo": f"Administrador de dados / {cargo_detectado}",
-                            "descricao": f"Oportunidade alinhada ao seu perfil com foco em {top_competencias[0] if top_competencias else 'dados'}, otimização, suporte e administração de ambientes de bases de dados.",
-                            "termo_busca": f"{cargo_detectado} {top_competencias[0] if top_competencias else ''}"
+                            "titulo": f"Oportunidade Principal: DBA / Administrador de Dados",
+                            "termo_pesquisa": "DBA",
+                            "descricao": f"Vagas focadas em administração de bases de dados, otimização e suporte com base em {top_competencias[0] if top_competencias else 'SQL'}."
                         },
                         {
-                            "empresa": "Tech Solutions Brasil",
-                            "cargo": f"{cargo_detectado} Sênior",
-                            "descricao": f"Procuramos profissional com experiência em modelagem, rotinas e tecnologias presentes no seu currículo como {top_competencias[1] if len(top_competencias) > 1 else 'SQL'}.",
-                            "termo_busca": f"{cargo_detectado} {top_competencias[1] if len(top_competencias) > 1 else 'Senior'}"
+                            "titulo": f"Oportunidade Complementar: PostgreSQL & Dados",
+                            "termo_pesquisa": "PostgreSQL",
+                            "descricao": f"Vagas que exigem conhecimentos práticos em query tuning, arquitetura e rotinas associadas ao seu currículo."
+                        },
+                        {
+                            "titulo": f"Oportunidade Ampla: Analista / Engenharia de Dados",
+                            "termo_pesquisa": "Analista de Dados",
+                            "descricao": f"Oportunidades de mercado para atuar com ecossistemas de dados, relatórios e infraestrutura."
                         }
                     ]
                     
                     for vaga in vagas_automaticas:
                         score, comuns, faltantes = calcular_compatibilidade(cv_texto_ativo, vaga["descricao"])
-                        cor_badge = "🟢" if score >= 75 else ("🟡" if score >= 45 else "🔴")
+                        cor_badge = "🟢" if score >= 60 else "🟡"
                         
-                        termo_url = vaga["termo_busca"].strip().replace(" ", "%20")
-                        link_direto_vaga = f"https://www.linkedin.com/search/results/content/?keywords={termo_url}&origin=FACETED_SEARCH&geoUrn=%5B%22106057199%22%5D&contentType=%22jobs%22&sortBy=%22date_posted%22&datePosted=%22past-24h%22"
+                        termo_url = vaga["termo_pesquisa"].replace(" ", "%20")
                         
-                        with st.expander(f"{cor_badge} {vaga['empresa']} - {vaga['cargo']} | Compatibilidade com o seu CV: {score}%"):
-                            col_a1, col_a2 = st.columns([3, 1])
-                            with col_a1:
-                                st.write(f"**Descrição Analisada:** {vaga['descricao']}")
-                                st.write(f"🔹 **Competências identificadas em comum:** {', '.join(comuns[:8]) if comuns else 'Alinhamento geral'}")
-                            with col_a2:
-                                st.metric(label="Match do Currículo", value=f"{score}%")
-                                
-                            st.markdown(f"🔗 **[Abrir Vagas Exatas Filtradas no LinkedIn]({link_direto_vaga})**", unsafe_allow_html=True)
+                        # Link 1: Publicações (Feed com filtro de vagas e últimas 24h)
+                        link_posts = f"https://www.linkedin.com/search/results/content/?keywords={termo_url}&origin=FACETED_SEARCH&geoUrn=%5B%22106057199%22%5D&contentType=%22jobs%22&sortBy=%22date_posted%22&datePosted=%22past-24h%22"
+                        
+                        # Link 2: Aba Oficial de Vagas do LinkedIn (Jobs)
+                        link_jobs = f"https://www.linkedin.com/jobs/search/?keywords={termo_url}&location=Brasil&f_TPR=r86400&sortBy=DD"
+                        
+                        with st.expander(f"{cor_badge} {vaga['titulo']} | Compatibilidade: {score}%"):
+                            st.write(f"**Descrição da Área:** {vaga['descricao']}")
+                            st.write(f"🔹 **Competências alinhadas:** {', '.join(comuns[:6]) if comuns else 'Alinhamento geral detetado'}")
+                            st.markdown("---")
+                            c1, c2 = st.columns(2)
+                            with c1:
+                                st.markdown(f"📢 **[🔍 Ver Publicações de Recrutadores]({link_posts})**", unsafe_allow_html=True)
+                            with c2:
+                                st.markdown(f"💼 **[🏢 Ver Vagas Oficiais (Jobs)]({link_jobs})**", unsafe_allow_html=True)
 
     elif menu == "🎯 Gestão de Candidaturas":
         st.title("🎯 Gestão de Candidaturas")
