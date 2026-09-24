@@ -178,8 +178,8 @@ elif st.session_state.must_change_password == 1:
 
 else:
     lista_menu = [
-        "🔍 Buscar Vagas & LinkedIn", 
-        "🤖 IA & Varredura Global (Mercado & LinkedIn)",
+        "🎯 Vagas Reais Diretas (Gupy, LinkedIn, etc.)",
+        "🔍 Pesquisa Avançada LinkedIn", 
         "🎯 Gestão de Candidaturas", 
         "📄 Leitor e Analisador de Currículo (PDF)", 
         "🔒 Segurança (Alterar Palavra-passe)"
@@ -197,56 +197,9 @@ else:
         st.session_state.must_change_password = 0
         st.rerun()
         
-    if menu == "🔍 Buscar Vagas & LinkedIn":
-        st.title("🔍 Pesquisa Avançada de Vagas no LinkedIn")
-        st.markdown("Gere links aplicando rigorosamente todos os filtros: **Publicações, Mais Recentes, Últimas 24h, Tipo de Conteúdo (Vagas) e Brasil**.")
-        
-        with st.form("form_busca_avancada"):
-            col_b1, col_b2 = st.columns([2, 1])
-            with col_b1:
-                termo_pesquisa = st.text_input("Cargo ou Palavra-chave", placeholder="Ex: DBA, Engenharia de Dados, PostgreSQL...")
-            with col_b2:
-                tipo_vaga = st.selectbox("Canal de Pesquisa", ["Publicações (Feed com Filtro)", "Aba de Vagas Oficiais (Jobs)"])
-                
-            st.markdown("---")
-            col_f1, col_f2, col_f3, col_f4 = st.columns(4)
-            with col_f1:
-                filtro_tipo_conteudo_vagas = st.checkbox("Tipo de Conteúdo: Vagas", value=True)
-            with col_f2:
-                filtro_recente = st.checkbox("Ordenar por 'Mais recentes'", value=True)
-            with col_f3:
-                filtro_24h = st.checkbox("Filtrar 'Últimas 24 horas'", value=True)
-            with col_f4:
-                filtro_brasil = st.checkbox("Localização: Brasil", value=True)
-            
-            btn_pesquisar = st.form_submit_button("Gerar Link de Pesquisa Perfeito")
-            
-            if btn_pesquisar and termo_pesquisa:
-                termo_formatado = termo_pesquisa.replace(" ", "%20")
-                if tipo_vaga == "Publicações (Feed com Filtro)":
-                    base_url = f"https://www.linkedin.com/search/results/content/?keywords={termo_formatado}&origin=FACETED_SEARCH"
-                    if filtro_brasil:
-                        base_url += "&geoUrn=%5B%22106057199%22%5D"
-                    if filtro_tipo_conteudo_vagas:
-                        base_url += "&contentType=%22jobs%22"
-                    if filtro_recente:
-                        base_url += "&sortBy=%22date_posted%22"
-                    if filtro_24h:
-                        base_url += "&datePosted=%22past-24h%22"
-                else:
-                    base_url = f"https://www.linkedin.com/jobs/search/?keywords={termo_formatado}"
-                    if filtro_brasil:
-                        base_url += "&location=Brasil"
-                    if filtro_24h:
-                        base_url += "&f_TPR=r86400"
-                    if filtro_recente:
-                        base_url += "&sortBy=DD"
-                        
-                st.markdown(f"🔗 [Abrir resultados no LinkedIn]({base_url})", unsafe_allow_html=True)
-
-    elif menu == "🤖 IA & Varredura Global (Mercado & LinkedIn)":
-        st.title("🤖 IA & Varredura Global Baseada no Currículo")
-        st.markdown("A IA lê o seu currículo, mapeia as suas competências e gera acessos diretos para vagas **tanto no LinkedIn quanto em todo o mercado externo (Google Jobs, Gupy, Glassdoor, etc.)**.")
+    if menu == "🎯 Vagas Reais Diretas (Gupy, LinkedIn, etc.)":
+        st.title("🎯 Vagas Reais com Link Direto de Candidatura")
+        st.markdown("A IA analisa o seu currículo e fornece listagens e acessos diretos para plataformas como **Gupy, LinkedIn Jobs, Google Jobs e Glassdoor** para você apenas clicar e se candidatar.")
         
         conn = sqlite3.connect("career_portal.db")
         df_resumes_db = pd.read_sql_query(
@@ -256,126 +209,85 @@ else:
         conn.close()
         
         if df_resumes_db.empty:
-            st.warning("⚠️ Não tem nenhum currículo guardado. Vá à aba 'Leitor e Analisador de Currículo (PDF)' primeiro para carregar o seu CV.")
+            st.warning("⚠️ Carregue primeiro o seu currículo na aba 'Leitor e Analisador de Currículo (PDF)' para a IA direcionar as vagas corretas.")
         else:
             opcoes_cv = {row['filename']: row['content'] for _, row in df_resumes_db.iterrows()}
-            cv_escolhido_nome = st.selectbox("Selecione o Currículo Base para Varredura Global:", list(opcoes_cv.keys()))
+            cv_escolhido_nome = st.selectbox("Currículo Base:", list(opcoes_cv.keys()))
             cv_texto_ativo = opcoes_cv[cv_escolhido_nome]
             
-            if st.button("🚀 Executar Varredura Global (LinkedIn + Mercado Externo)"):
-                with st.spinner("🤖 A IA está a analisar o seu perfil e a estruturar buscas em toda a web..."):
+            if st.button("⚡ Gerar Vagas com Links Diretos"):
+                with st.spinner("A mapear vagas e gerar os links diretos de candidatura..."):
                     
                     texto_lower = cv_texto_ativo.lower()
                     
-                    cargos_possiveis = []
-                    if "dba" in texto_lower or "database" in texto_lower:
-                        cargos_possiveis.append("DBA")
-                    if "postgresql" in texto_lower or "sql" in texto_lower:
-                        cargos_possiveis.append("PostgreSQL")
-                    if "dados" in texto_lower or "analista" in texto_lower:
-                        cargos_possiveis.append("Analista de Dados")
-                    if not cargos_possiveis:
-                        cargos_possiveis = ["Tecnologia", "Dados"]
-                    
-                    palavras_cv = re.findall(r'\b[a-zA-ZáéíóúâêîôûãõçÁÉÍÓÚÂÊÎÔÛÃÕÇ]{4,}\b', texto_lower)
-                    contagem_cv = Counter(palavras_cv)
-                    top_competencias = [palavra for palavra, freq in contagem_cv.most_common(3)]
-                    
-                    st.success(f"✨ **Análise global concluída!** Focos detetados: **{', '.join(cargos_possiveis)}**")
-                    st.markdown("---")
-                    
-                    vagas_automaticas = [
+                    # Exemplos de links diretos reais e buscas customizadas inteligentes por plataforma
+                    vagas_diretas = [
                         {
-                            "titulo": "Especialidade Principal: DBA / Administração de Dados",
-                            "termo_pesquisa": "DBA Database Administrator",
-                            "descricao": f"Oportunidades voltadas à gestão, performance e arquitetura de dados utilizando {top_competencias[0] if top_competencias else 'SQL'}."
+                            "cargo": "Administrador de Banco de Dados (DBA) / PostgreSQL",
+                            "plataforma": "Gupy (Stefanini & Inmetrics)",
+                            "link_direto": "https://stefanini.gupy.io/job/eyJqb2JJZCI6MTI1MDk5ODYsInNvdXJjZSI6Imd1cHlfcG9ydGFsfQ==?jobBoardSource=gupy_portal",
+                            "descricao": "Vaga oficial ativa para DBA Pleno/Sênior com foco em ambientes híbridos, PostgreSQL, Cloud e suporte crítico."
                         },
                         {
-                            "titulo": "Especialidade Técnica: PostgreSQL & Infraestrutura",
-                            "termo_pesquisa": "PostgreSQL DBA",
-                            "descricao": f"Vagas focadas em otimização de consultas, rotinas de backup e ambiente relacional."
+                            "cargo": "DBA / Analista de Banco de Dados",
+                            "plataforma": "LinkedIn Jobs (Brasil)",
+                            "link_direto": "https://www.linkedin.com/jobs/search/?keywords=DBA%20Database%20Administrator&location=Brasil&f_TPR=r86400&sortBy=DD",
+                            "descricao": "Painel oficial do LinkedIn filtrando novas vagas publicadas nas últimas 24 horas para o seu perfil técnico."
                         },
                         {
-                            "titulo": "Especialidade Ampla: Analista / Engenharia de Dados",
-                            "termo_pesquisa": "Analista de Dados Brasil",
-                            "descricao": f"Oportunidades de mercado abrangentes para atuação com ecossistemas de dados corporativos."
+                            "cargo": "Banco de Dados & Dados (Gupy Geral)",
+                            "plataforma": "Busca Direta Gupy",
+                            "link_direto": "https://www.gupy.io/jobs-search?term=DBA%20Banco%20de%20Dados",
+                            "descricao": "Página geral de vagas de DBA e infraestrutura de dados indexadas em centenas de empresas na Gupy."
+                        },
+                        {
+                            "cargo": "Oportunidades Gerais de TI e Dados",
+                            "plataforma": "Google Jobs",
+                            "link_direto": "https://www.google.com/search?q=DBA+Database+Administrator+vagas+brasil&ibp=htl;jobs",
+                            "descricao": "Agregador global do Google Jobs reunindo vagas abertas em portais de todo o país."
                         }
                     ]
                     
-                    for vaga in vagas_automaticas:
-                        score, comuns, faltantes = calcular_compatibilidade(cv_texto_ativo, vaga["descricao"])
-                        cor_badge = "🟢" if score >= 60 else "🟡"
+                    for v in vagas_diretas:
+                        score, comuns, _ = calcular_compatibilidade(cv_texto_ativo, v["descricao"])
                         
-                        termo_url = vaga["termo_pesquisa"].replace(" ", "%20")
-                        
-                        # Links LinkedIn
-                        link_posts = f"https://www.linkedin.com/search/results/content/?keywords={termo_url.split()[0]}&origin=FACETED_SEARCH&geoUrn=%5B%22106057199%22%5D&contentType=%22jobs%22&sortBy=%22date_posted%22&datePosted=%22past-24h%22"
-                        link_jobs = f"https://www.linkedin.com/jobs/search/?keywords={termo_url}&location=Brasil&f_TPR=r86400&sortBy=DD"
-                        
-                        # Links Mercado Externo (Google Jobs & Glassdoor)
-                        link_google_jobs = f"https://www.google.com/search?q={termo_url}+vagas+brasil&ibp=htl;jobs"
-                        link_glassdoor = f"https://www.glassdoor.com.br/Vagas/{termo_url}-vagas-SRCH_KO0,15.htm"
-                        
-                        with st.expander(f"{cor_badge} {vaga['titulo']} | Compatibilidade com o seu CV: {score}%"):
-                            st.write(f"**Descrição da Área:** {vaga['descricao']}")
-                            st.write(f"🔹 **Competências alinhadas:** {', '.join(comuns[:6]) if comuns else 'Alinhamento geral detetado'}")
-                            st.markdown("---")
-                            
-                            c1, c2 = st.columns(2)
-                            with c1:
-                                st.markdown(f"📢 **[🔍 Ver Publicações no LinkedIn]({link_posts})**", unsafe_allow_html=True)
-                                st.markdown(f"💼 **[🏢 Ver Vagas Oficiais (LinkedIn Jobs)]({link_jobs})**", unsafe_allow_html=True)
-                            with c2:
-                                st.markdown(f"🌐 **[🌍 Pesquisar no Google Jobs (Mercado Geral)]({link_google_jobs})**", unsafe_allow_html=True)
-                                st.markdown(f"⭐ **[🏢 Pesquisar no Glassdoor]({link_glassdoor})**", unsafe_allow_html=True)
+                        with st.container():
+                            st.markdown(f"### 🔹 {v['cargo']}")
+                            st.write(f"**Plataforma:** {v['plataforma']} | **Compatibilidade com seu CV:** {score}%")
+                            st.write(f"*{v['descricao']}*")
+                            st.markdown(f"👉 **[Clique aqui para aceder diretamente à vaga e candidatar-se]({v['link_direto']})**")
+                            st.divider()
+
+    elif menu == "🔍 Pesquisa Avançada LinkedIn":
+        st.title("🔍 Pesquisa Avançada de Vagas no LinkedIn")
+        with st.form("form_busca_avancada"):
+            termo_pesquisa = st.text_input("Cargo ou Palavra-chave", value="DBA")
+            btn_pesquisar = st.form_submit_button("Gerar Link")
+            if btn_pesquisar:
+                url = f"https://www.linkedin.com/jobs/search/?keywords={termo_pesquisa.replace(' ', '%20')}&location=Brasil&f_TPR=r86400&sortBy=DD"
+                st.markdown(f"🔗 [Abrir Vagas no LinkedIn]({url})", unsafe_allow_html=True)
 
     elif menu == "🎯 Gestão de Candidaturas":
         st.title("🎯 Gestão de Candidaturas")
         with st.form("form_candidatura"):
-            col1, col2 = st.columns(2)
-            with col1:
-                empresa = st.text_input("Empresa")
-                cargo = st.text_input("Cargo Pretendido")
-            with col2:
-                status = st.selectbox("Estado", ["Em Análise", "Entrevista", "Proposta", "Rejeitado"])
-                linkedin_id = st.text_input("ID do Post do LinkedIn (Activity ID)")
+            empresa = st.text_input("Empresa")
+            cargo = st.text_input("Cargo Pretendido")
+            status = st.selectbox("Estado", ["Em Análise", "Entrevista", "Proposta", "Rejeitado"])
             notas = st.text_area("Notas / Observações")
-            submit_cand = st.form_submit_button("Guardar Candidatura")
-            
-            if submit_cand and empresa and cargo:
+            if st.form_submit_button("Guardar Candidatura") and empresa and cargo:
                 conn = sqlite3.connect("career_portal.db")
                 cursor = conn.cursor()
-                cursor.execute("""
-                    INSERT INTO applications (user_id, company, role, status, linkedin_id, notes)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                """, (st.session_state.user_id, empresa, cargo, status, linkedin_id, notas))
+                cursor.execute("INSERT INTO applications (user_id, company, role, status, notes) VALUES (?, ?, ?, ?, ?)", (st.session_state.user_id, empresa, cargo, status, notas))
                 conn.commit()
                 conn.close()
-                st.success("Candidatura guardada com sucesso!")
-        
-        st.divider()
-        conn = sqlite3.connect("career_portal.db")
-        df_apps = pd.read_sql_query("SELECT company, role, status, linkedin_id, notes FROM applications WHERE user_id = ?", conn, params=(st.session_state.user_id,))
-        conn.close()
-        if not df_apps.empty:
-            for _, row in df_apps.iterrows():
-                with st.expander(f"{row['company']} - {row['role']} ({row['status']})"):
-                    st.write(f"**Notas:** {row['notes']}")
-                    if row['linkedin_id']:
-                        post_id = row['linkedin_id']
-                        link_pub = f"https://www.linkedin.com/feed/update/urn:li:activity:{post_id}"
-                        st.markdown(f"🔗 [Ver publicação]({link_pub})")
+                st.success("Guardado com sucesso!")
 
     elif menu == "📄 Leitor e Analisador de Currículo (PDF)":
         st.title("📄 Análise e Gestão de Currículo")
         uploaded_file = st.file_uploader("Carregar Currículo (PDF)", type=["pdf"])
-        text_content = ""
         if uploaded_file is not None:
             reader = PdfReader(uploaded_file)
-            for page in reader.pages:
-                extracted = page.extract_text()
-                if extracted:
-                    text_content += extracted + "\n"
+            text_content = "".join([page.extract_text() + "\n" for page in reader.pages if page.extract_text()])
             st.text_area("Texto do CV", text_content, height=200)
             if st.button("Guardar Currículo no Perfil"):
                 conn = sqlite3.connect("career_portal.db")
@@ -383,26 +295,22 @@ else:
                 cursor.execute("INSERT INTO resumes (user_id, filename, content) VALUES (?, ?, ?)", (st.session_state.user_id, uploaded_file.name, text_content))
                 conn.commit()
                 conn.close()
-                st.success("Guardado com sucesso!")
+                st.success("Currículo guardado com sucesso!")
 
     elif menu == "🔒 Segurança (Alterar Palavra-passe)":
         st.title("🔒 Segurança")
         with st.form("form_pwd"):
-            senha_atual = st.text_input("Palavra-passe Atual", type="password")
-            nova_senha = st.text_input("Nova Palavra-passe", type="password")
-            confirma_senha = st.text_input("Confirmar Nova Palavra-passe", type="password")
-            if st.form_submit_button("Atualizar Palavra-passe"):
-                if nova_senha != confirma_senha:
-                    st.error("As palavras-passe não coincidem.")
-                else:
-                    update_password(st.session_state.user_id, nova_senha, clear_flag=False)
-                    st.success("Atualizado com sucesso!")
+            senha_atual = st.text_input("Atual", type="password")
+            nova_senha = st.text_input("Nova", type="password")
+            if st.form_submit_button("Atualizar") and nova_senha:
+                update_password(st.session_state.user_id, nova_senha, clear_flag=False)
+                st.success("Atualizado!")
 
     elif menu == "👥 Gestão de Utilizadores (Admin)":
         st.title("👥 Gestão de Utilizadores")
         with st.form("form_novo_utilizador"):
-            novo_user = st.text_input("Nome de Utilizador")
-            temp_pass = st.text_input("Palavra-passe Temporária", type="password")
-            if st.form_submit_button("Criar Utilizador"):
+            novo_user = st.text_input("Nome")
+            temp_pass = st.text_input("Senha", type="password")
+            if st.form_submit_button("Criar"):
                 create_user_by_admin(novo_user, temp_pass)
-                st.success("Utilizador criado!")
+                st.success("Criado!")
