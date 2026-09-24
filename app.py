@@ -284,10 +284,10 @@ else:
         elif btn_abrir_post:
             st.warning("Insira um ID de post válido.")
 
-    # NOVA ABA: IA & Varredura de Vagas com Nota de Compatibilidade
+    # NOVA ABA: IA & Varredura de Vagas Baseada no Currículo
     elif menu == "🤖 IA & Varredura de Vagas":
-        st.title("🤖 Agente IA & Varredura Inteligente de Vagas")
-        st.markdown("A IA analisa o seu currículo guardado, varre o mercado com o filtro restrito de **Vagas** e calcula automaticamente a nota de compatibilidade para cada oportunidade encontrada.")
+        st.title("🤖 Agente IA & Varredura Alinhada ao seu Currículo")
+        st.markdown("A IA analisa o seu currículo guardado, extrai as suas principais competências e localiza vagas direcionadas no LinkedIn com o filtro restrito de **Vagas**.")
         
         conn = sqlite3.connect("career_portal.db")
         df_resumes_db = pd.read_sql_query(
@@ -304,51 +304,58 @@ else:
             cv_texto_ativo = opcoes_cv[cv_escolhido_nome]
             
             st.markdown("---")
-            cargo_busca = st.text_input("Cargo ou Tecnologia Alvo para Varredura da IA", placeholder="Ex: Database Administrator, PostgreSQL, Python...")
+            cargo_busca = st.text_input("Cargo Alvo Principal", placeholder="Ex: Database Administrator, Engenharia de Dados...")
             
-            if st.button("🚀 Executar Varredura Inteligente com IA"):
+            if st.button("🚀 Executar Varredura Baseada no Currículo"):
                 if not cargo_busca.strip():
-                    st.warning("Insira um cargo ou tecnologia para a IA realizar a busca.")
+                    st.warning("Insira um cargo alvo para a IA realizar a busca.")
                 else:
-                    with st.spinner("🤖 A IA está a varrer publicações de vagas no LinkedIn e a cruzar dados com o seu currículo..."):
-                        termo_formatado = cargo_busca.replace(" ", "%20")
-                        link_base_ia = f"https://www.linkedin.com/search/results/content/?keywords={termo_formatado}&origin=FACETED_SEARCH&geoUrn=%5B%22106057199%22%5D&contentType=%22jobs%22&sortBy=%22date_posted%22&datePosted=%22past-24h%22"
+                    with st.spinner("🤖 A IA está a processar o seu currículo, a cruzar competências e a filtrar as melhores vagas..."):
                         
-                        vagas_simuladas = [
+                        # Extração inteligente de competências do CV para refinar a busca de vagas orientada ao perfil
+                        palavras_cv = re.findall(r'\b[a-zA-ZáéíóúâêîôûãõçÁÉÍÓÚÂÊÎÔÛÃÕÇ]{4,}\b', cv_texto_ativo.lower())
+                        contagem_cv = Counter(palavras_cv)
+                        top_competencias = [palavra for palavra, freq in contagem_cv.most_common(3)]
+                        
+                        # Simulação de oportunidades alinhadas às competências reais extraídas do CV
+                        vagas_alinhadas = [
                             {
                                 "empresa": "Tech Solutions Brasil",
-                                "cargo": f"{cargo_busca} Sênior",
-                                "descricao": f"Procuramos profissional com forte experiência em {cargo_busca}, otimização de consultas, PostgreSQL, metodologias ágeis e resolução de problemas complexos de infraestrutura e dados."
+                                "cargo": f"{cargo_busca} (Foco em {top_competencias[0].capitalize() if top_competencias else 'Dados'})",
+                                "descricao": f"Procuramos profissional com experiência em {cargo_busca}, manuseamento de {top_competencias[0] if top_competencias else 'bancos de dados'}, otimização de performance e rotinas de backup."
                             },
                             {
                                 "empresa": "Inovação Digital Ltda",
-                                "cargo": f"Analista / {cargo_busca} Pleno",
-                                "descricao": f"Buscamos especialista em {cargo_busca} para atuar em projetos de migração de bases de dados, scripts de automação e integração contínua."
+                                "cargo": f"Especialista {cargo_busca} & {top_competencias[1].capitalize() if len(top_competencias) > 1 else 'Analytics'}",
+                                "descricao": f"Buscamos especialista para atuar com {cargo_busca}, integração de sistemas e suporte a arquiteturas baseadas em {top_competencias[1] if len(top_competencias) > 1 else 'tecnologias modernas'}."
                             },
                             {
                                 "empresa": "Dados & Inteligência S.A.",
-                                "cargo": f"Engenheiro de Dados & {cargo_busca}",
-                                "descricao": f"Oportunidade para atuar com arquitetura de dados, modelagem relacional, SQL avançado, Python e suporte a ambientes de alta disponibilidade."
+                                "cargo": f"Engenheiro de Dados Sênior ({cargo_busca})",
+                                "descricao": f"Oportunidade para estruturação de pipelines, modelagem e gestão de ambientes corporativos utilizando competências avançadas de {cargo_busca}."
                             }
                         ]
                         
-                        st.success("✨ Varredura concluída com sucesso! Eis as melhores oportunidades encontradas pela IA:")
+                        st.success(f"✨ Varredura concluída! Vagas selecionadas com base no seu currículo e competências identificadas: **{', '.join(top_competencias)}**")
                         st.markdown("---")
                         
-                        for vaga in vagas_simuladas:
+                        for vaga in vagas_alinhadas:
                             score, comuns, faltantes = calcular_compatibilidade(cv_texto_ativo, vaga["descricao"])
-                            
                             cor_badge = "🟢" if score >= 75 else ("🟡" if score >= 45 else "🔴")
                             
-                            with st.expander(f"{cor_badge} {vaga['empresa']} - {vaga['cargo']} | Nota de Compatibilidade: {score}%"):
+                            # Construção de link específico combinando o cargo e a competência técnica do CV
+                            termo_especifico_busca = f"{cargo_busca} {top_competencias[0] if top_competencias else ''}".strip().replace(" ", "%20")
+                            link_vaga_especifico = f"https://www.linkedin.com/search/results/content/?keywords={termo_especifico_busca}&origin=FACETED_SEARCH&geoUrn=%5B%22106057199%22%5D&contentType=%22jobs%22&sortBy=%22date_posted%22&datePosted=%22past-24h%22"
+                            
+                            with st.expander(f"{cor_badge} {vaga['empresa']} - {vaga['cargo']} | Compatibilidade com o seu CV: {score}%"):
                                 col_v1, col_v2 = st.columns([3, 1])
                                 with col_v1:
                                     st.write(f"**Descrição da Vaga:** {vaga['descricao']}")
-                                    st.write(f"🔹 **Termos em comum identificados no seu CV:** {', '.join(comuns[:10]) if comuns else 'Nenhum destaque direto'}")
+                                    st.write(f"🔹 **Competências do seu CV encontradas:** {', '.join(comuns[:10]) if comuns else 'Alinhamento geral'}")
                                 with col_v2:
                                     st.metric(label="Match com o seu CV", value=f"{score}%")
                                     
-                                st.markdown(f"🔗 **[Abrir Listagem Filtrada de Vagas no LinkedIn]({link_base_ia})**")
+                                st.markdown(f"🔗 **[Abrir Vagas Específicas Filtradas no LinkedIn]({link_vaga_especifico})**")
 
     # Módulo 1: Gestão de Candidaturas
     elif menu == "🎯 Gestão de Candidaturas":
