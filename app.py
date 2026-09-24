@@ -128,10 +128,10 @@ else:
         st.session_state.username = ""
         st.rerun()
         
-    # Módulo de Busca Avançada Perfeito
+    # Módulo de Busca Avançada Corrigido
     if menu == "🔍 Buscar Vagas & LinkedIn":
         st.title("🔍 Pesquisa Avançada de Vagas no LinkedIn")
-        st.markdown("Gere links aplicando rigorosamente todos os filtros da interface: **Publicações, Mais Recentes, Últimas 24h, Tipo de Conteúdo (Vagas) e Brasil**.")
+        st.markdown("Gere links aplicando rigorosamente todos os filtros: **Publicações, Mais Recentes, Últimas 24h, Tipo de Conteúdo (Vagas) e Brasil**.")
         
         with st.form("form_busca_avancada"):
             col_b1, col_b2 = st.columns([2, 1])
@@ -141,7 +141,7 @@ else:
                 tipo_vaga = st.selectbox("Canal de Pesquisa", ["Publicações (Feed com Filtro)", "Aba de Vagas Oficiais (Jobs)"])
                 
             st.markdown("---")
-            st.write("⚙️ **Filtros Ativos (Padrão exato do seu painel do LinkedIn):**")
+            st.write("⚙️ **Filtros Ativos:**")
             col_f1, col_f2, col_f3, col_f4 = st.columns(4)
             with col_f1:
                 filtro_tipo_conteudo_vagas = st.checkbox("Tipo de Conteúdo: Vagas", value=True)
@@ -158,20 +158,19 @@ else:
                 termo_formatado = termo_pesquisa.replace(" ", "%20")
                 
                 if tipo_vaga == "Publicações (Feed com Filtro)":
-                    # URL base de pesquisa de conteúdo do LinkedIn
-                    base_url = f"https://www.linkedin.com/search/results/content/?keywords={termo_formatado}"
+                    # URL corrigida utilizando o parâmetro exato de contentType para publicações de vagas no LinkedIn
+                    base_url = f"https://www.linkedin.com/search/results/content/?keywords={termo_formatado}&origin=FACETED_SEARCH"
                     
-                    # Adicionando os parâmetros exatos extraídos da sua imagem de referência
                     if filtro_brasil:
                         base_url += "&geoUrn=%5B%22106057199%22%5D"
                     if filtro_tipo_conteudo_vagas:
-                        base_url += "&contentContainsJobPosting=true"
+                        base_url += "&contentType=%22jobs%22"
                     if filtro_recente:
                         base_url += "&sortBy=%22date_posted%22"
                     if filtro_24h:
                         base_url += "&datePosted=%22past-24h%22"
                         
-                    st.success(f"Link gerado com o filtro de Tipo de Conteúdo (Vagas) ativado para: **{termo_pesquisa}**")
+                    st.success(f"Link gerado com o filtro exato de Tipo de Conteúdo (Vagas) para: **{termo_pesquisa}**")
                 else:
                     base_url = f"https://www.linkedin.com/jobs/search/?keywords={termo_formatado}"
                     if filtro_brasil:
