@@ -128,10 +128,10 @@ else:
         st.session_state.username = ""
         st.rerun()
         
-    # Módulo de Busca Otimizado
+    # Módulo de Busca Otimizado com Filtro Brasil
     if menu == "🔍 Buscar Vagas & LinkedIn":
         st.title("🔍 Pesquisa Avançada de Vagas no LinkedIn")
-        st.markdown("Filtre as melhores oportunidades por tipo de origem e recência exata.")
+        st.markdown("Filtre as melhores oportunidades por tipo de origem, localização (Brasil) e recência.")
         
         with st.form("form_busca_avancada"):
             col_b1, col_b2 = st.columns([2, 1])
@@ -148,17 +148,17 @@ else:
                 termo_formatado = termo_pesquisa.replace(" ", "%20")
                 
                 if tipo_vaga == "Publicações de Pessoas (Feed)":
-                    # Usando o filtro de data rigoroso para o feed de publicações do LinkedIn (datePosted="past-24h")
-                    base_url = f"https://www.linkedin.com/search/results/content/?keywords={termo_formatado}"
+                    # URL para o Feed restrito ao Brasil (geoUrn=106057199) e últimas 24h
+                    base_url = f"https://www.linkedin.com/search/results/content/?keywords={termo_formatado}&geoUrn=%5B%22106057199%22%5D"
                     if filtro_24h:
                         base_url += "&datePosted=%22past-24h%22"
-                    st.success(f"Link otimizado gerado para publicações de pessoas sobre: **{termo_pesquisa}**")
+                    st.success(f"Link otimizado gerado para publicações de pessoas no **Brasil** sobre: **{termo_pesquisa}**")
                 else:
-                    # Aba de Vagas com parâmetro exato de 24h (f_TPR=r86400)
-                    base_url = f"https://www.linkedin.com/jobs/search/?keywords={termo_formatado}"
+                    # Aba de Vagas Oficiais (Jobs) com foco no Brasil e filtro de 24h
+                    base_url = f"https://www.linkedin.com/jobs/search/?keywords={termo_formatado}&location=Brasil"
                     if filtro_24h:
                         base_url += "&f_TPR=r86400"
-                    st.success(f"Link otimizado gerado para a Aba de Vagas Oficiais sobre: **{termo_pesquisa}**")
+                    st.success(f"Link otimizado gerado para a Aba de Vagas Oficiais no **Brasil** sobre: **{termo_pesquisa}**")
                     
                 st.markdown(f"🔗 [Clique aqui para abrir os resultados filtrados no LinkedIn]({base_url})", unsafe_allow_html=True)
             elif btn_pesquisar:
