@@ -128,58 +128,58 @@ else:
         st.session_state.username = ""
         st.rerun()
         
-    # Módulo de Busca Otimizado
+    # Módulo de Busca Atualizado com o Filtro de Tipo de Conteúdo (Vagas)
     if menu == "🔍 Buscar Vagas & LinkedIn":
         st.title("🔍 Pesquisa Avançada de Vagas no LinkedIn")
-        st.markdown("Gere links aplicando rigorosamente os filtros de **Publicações, Mais Recentes, Últimas 24h, Anúncios de Vaga e Brasil**.")
+        st.markdown("Gere links aplicando os filtros de **Tipo de Conteúdo (Vagas), Mais Recentes, Últimas 24h e Brasil**.")
         
         with st.form("form_busca_avancada"):
             col_b1, col_b2 = st.columns([2, 1])
             with col_b1:
                 termo_pesquisa = st.text_input("Cargo ou Palavra-chave", placeholder="Ex: DBA, Engenharia de Dados, PostgreSQL...")
             with col_b2:
-                tipo_vaga = st.selectbox("Origem das Vagas", ["Publicações de Pessoas (Feed Completo)", "Aba de Vagas Oficiais (Jobs)"])
+                tipo_vaga = st.selectbox("Canal de Pesquisa", ["Publicações (Feed com Filtro de Vagas)", "Aba de Vagas Oficiais (Jobs)"])
                 
             st.markdown("---")
-            st.write("⚙️ **Filtros Ativos (Padrão exato da sua imagem de referência):**")
+            st.write("⚙️ **Filtros Ativos:**")
             col_f1, col_f2, col_f3, col_f4 = st.columns(4)
             with col_f1:
-                filtro_publicacoes = st.checkbox("Filtro 'Publicações'", value=True)
+                tipo_conteudo_vagas = st.selectbox("Tipo de Conteúdo", ["Vagas (Job Postings)", "Todos os Posts"])
             with col_f2:
-                filtro_recente = st.checkbox("Filtro 'Mais recentes'", value=True)
+                filtro_recente = st.checkbox("Ordenar por 'Mais recentes'", value=True)
             with col_f3:
-                filtro_24h = st.checkbox("Filtro 'Últimas 24 horas'", value=True)
+                filtro_24h = st.checkbox("Filtrar 'Últimas 24 horas'", value=True)
             with col_f4:
-                filtro_anuncio = st.checkbox("Filtro 'Anúncios de vaga'", value=True)
+                filtro_brasil = st.checkbox("Localização: Brasil", value=True)
             
             btn_pesquisar = st.form_submit_button("Gerar Link de Pesquisa Perfeito")
             
             if btn_pesquisar and termo_pesquisa:
                 termo_formatado = termo_pesquisa.replace(" ", "%20")
                 
-                if tipo_vaga == "Publicações de Pessoas (Feed Completo)":
-                    # URL ajustada com os parâmetros exatos aceites pela engine de pesquisa de conteúdo do LinkedIn
-                    base_url = f"https://www.linkedin.com/search/results/content/?keywords={termo_formatado}&geoUrn=%5B%22106057199%22%5D"
+                if tipo_vaga == "Publicações (Feed com Filtro de Vagas)":
+                    base_url = f"https://www.linkedin.com/search/results/content/?keywords={termo_formatado}"
                     
-                    if filtro_publicacoes:
-                        base_url += "&resultType=CONTENT"
+                    if filtro_brasil:
+                        base_url += "&geoUrn=%5B%22106057199%22%5D"
+                    if tipo_conteudo_vagas == "Vagas (Job Postings)":
+                        base_url += "&contentContainsJobPosting=true"
                     if filtro_recente:
                         base_url += "&sortBy=%22date_posted%22"
                     if filtro_24h:
                         base_url += "&datePosted=%22past-24h%22"
-                    if filtro_anuncio:
-                        base_url += "&contentContainsJobPosting=true"
                         
-                    st.success(f"Link gerado com todos os filtros ativados para publicações sobre: **{termo_pesquisa}**")
+                    st.success(f"Link gerado com o tipo de conteúdo focado em Vagas para: **{termo_pesquisa}**")
                 else:
-                    # Aba de Vagas Oficiais (Jobs) com parâmetros equivalentes
-                    base_url = f"https://www.linkedin.com/jobs/search/?keywords={termo_formatado}&location=Brasil"
+                    base_url = f"https://www.linkedin.com/jobs/search/?keywords={termo_formatado}"
+                    if filtro_brasil:
+                        base_url += "&location=Brasil"
                     if filtro_24h:
                         base_url += "&f_TPR=r86400"
                     if filtro_recente:
                         base_url += "&sortBy=DD"
                         
-                    st.success(f"Link gerado para a Aba de Vagas Oficiais no Brasil sobre: **{termo_pesquisa}**")
+                    st.success(f"Link gerado para a Aba de Vagas Oficiais sobre: **{termo_pesquisa}**")
                     
                 st.markdown(f"🔗 [Clique aqui para abrir os resultados perfeitamente filtrados no LinkedIn]({base_url})", unsafe_allow_html=True)
             elif btn_pesquisar:
