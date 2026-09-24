@@ -128,10 +128,10 @@ else:
         st.session_state.username = ""
         st.rerun()
         
-    # Módulo de Busca com Filtros Avançados
+    # Módulo de Busca Otimizado
     if menu == "🔍 Buscar Vagas & LinkedIn":
         st.title("🔍 Pesquisa Avançada de Vagas no LinkedIn")
-        st.markdown("Filtre as melhores oportunidades por tipo de origem e recência (últimas 24 horas).")
+        st.markdown("Filtre as melhores oportunidades por tipo de origem e recência exata.")
         
         with st.form("form_busca_avancada"):
             col_b1, col_b2 = st.columns([2, 1])
@@ -140,28 +140,27 @@ else:
             with col_b2:
                 tipo_vaga = st.selectbox("Origem das Vagas", ["Publicações de Pessoas (Feed)", "Aba de Vagas Oficiais (Jobs)"])
                 
-            filtro_24h = st.checkbox("Filtrar apenas vagas publicadas nas últimas 24 horas")
+            filtro_24h = st.checkbox("Filtrar estritamente publicações/vagas das últimas 24 horas", value=True)
             
-            btn_pesquisar = st.form_submit_button("Gerar Link de Pesquisa Direta")
+            btn_pesquisar = st.form_submit_button("Gerar Link de Pesquisa Otimizado")
             
             if btn_pesquisar and termo_pesquisa:
                 termo_formatado = termo_pesquisa.replace(" ", "%20")
                 
-                # Construção dos filtros URL do LinkedIn
                 if tipo_vaga == "Publicações de Pessoas (Feed)":
-                    # datePosted="r86400" filtra as últimas 24 horas no conteúdo/feed
+                    # Usando o filtro de data rigoroso para o feed de publicações do LinkedIn (datePosted="past-24h")
                     base_url = f"https://www.linkedin.com/search/results/content/?keywords={termo_formatado}"
                     if filtro_24h:
-                        base_url += "&datePosted=%22r86400%22"
-                    st.success(f"Link gerado para publicações de pessoas sobre: **{termo_pesquisa}**")
+                        base_url += "&datePosted=%22past-24h%22"
+                    st.success(f"Link otimizado gerado para publicações de pessoas sobre: **{termo_pesquisa}**")
                 else:
-                    # Aba de Vagas (Jobs) com filtro opcional de 24h (f_TPR=r86400)
+                    # Aba de Vagas com parâmetro exato de 24h (f_TPR=r86400)
                     base_url = f"https://www.linkedin.com/jobs/search/?keywords={termo_formatado}"
                     if filtro_24h:
                         base_url += "&f_TPR=r86400"
-                    st.success(f"Link gerado para a Aba de Vagas Oficiais sobre: **{termo_pesquisa}**")
+                    st.success(f"Link otimizado gerado para a Aba de Vagas Oficiais sobre: **{termo_pesquisa}**")
                     
-                st.markdown(f"🔗 [Clique aqui para abrir os resultados no LinkedIn]({base_url})", unsafe_allow_html=True)
+                st.markdown(f"🔗 [Clique aqui para abrir os resultados filtrados no LinkedIn]({base_url})", unsafe_allow_html=True)
             elif btn_pesquisar:
                 st.warning("Por favor, insira uma palavra-chave para pesquisar.")
             
