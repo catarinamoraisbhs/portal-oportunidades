@@ -179,7 +179,7 @@ elif st.session_state.must_change_password == 1:
 else:
     lista_menu = [
         "🔍 Buscar Vagas & LinkedIn", 
-        "🤖 IA & Varredura de Vagas (Auto)",
+        "🤖 IA & Varredura Global (Mercado & LinkedIn)",
         "🎯 Gestão de Candidaturas", 
         "📄 Leitor e Analisador de Currículo (PDF)", 
         "🔒 Segurança (Alterar Palavra-passe)"
@@ -244,9 +244,9 @@ else:
                         
                 st.markdown(f"🔗 [Abrir resultados no LinkedIn]({base_url})", unsafe_allow_html=True)
 
-    elif menu == "🤖 IA & Varredura de Vagas (Auto)":
-        st.title("🤖 IA & Varredura 100% Automática Baseada no Currículo")
-        st.markdown("A IA lê o seu currículo, mapeia todas as suas competências e gera opções de vagas com acesso direto tanto às **Publicações de Recrutadores** quanto às **Vagas Oficiais do LinkedIn**.")
+    elif menu == "🤖 IA & Varredura Global (Mercado & LinkedIn)":
+        st.title("🤖 IA & Varredura Global Baseada no Currículo")
+        st.markdown("A IA lê o seu currículo, mapeia as suas competências e gera acessos diretos para vagas **tanto no LinkedIn quanto em todo o mercado externo (Google Jobs, Gupy, Glassdoor, etc.)**.")
         
         conn = sqlite3.connect("career_portal.db")
         df_resumes_db = pd.read_sql_query(
@@ -259,15 +259,14 @@ else:
             st.warning("⚠️ Não tem nenhum currículo guardado. Vá à aba 'Leitor e Analisador de Currículo (PDF)' primeiro para carregar o seu CV.")
         else:
             opcoes_cv = {row['filename']: row['content'] for _, row in df_resumes_db.iterrows()}
-            cv_escolhido_nome = st.selectbox("Selecione o Currículo Base para Análise Automática:", list(opcoes_cv.keys()))
+            cv_escolhido_nome = st.selectbox("Selecione o Currículo Base para Varredura Global:", list(opcoes_cv.keys()))
             cv_texto_ativo = opcoes_cv[cv_escolhido_nome]
             
-            if st.button("🚀 Analisar Currículo e Mapear Vagas"):
-                with st.spinner("🤖 A IA está a processar o seu currículo e a criar os filtros inteligentes..."):
+            if st.button("🚀 Executar Varredura Global (LinkedIn + Mercado Externo)"):
+                with st.spinner("🤖 A IA está a analisar o seu perfil e a estruturar buscas em toda a web..."):
                     
                     texto_lower = cv_texto_ativo.lower()
                     
-                    # Detectar múltiplos termos para abranger todo tipo de vaga compatível
                     cargos_possiveis = []
                     if "dba" in texto_lower or "database" in texto_lower:
                         cargos_possiveis.append("DBA")
@@ -282,25 +281,24 @@ else:
                     contagem_cv = Counter(palavras_cv)
                     top_competencias = [palavra for palavra, freq in contagem_cv.most_common(3)]
                     
-                    st.success(f"✨ **Análise concluída!** Focos detetados no seu CV: **{', '.join(cargos_possiveis)}**")
+                    st.success(f"✨ **Análise global concluída!** Focos detetados: **{', '.join(cargos_possiveis)}**")
                     st.markdown("---")
                     
-                    # Gerar blocos de vagas abrangentes baseados no perfil
                     vagas_automaticas = [
                         {
-                            "titulo": f"Oportunidade Principal: DBA / Administrador de Dados",
-                            "termo_pesquisa": "DBA",
-                            "descricao": f"Vagas focadas em administração de bases de dados, otimização e suporte com base em {top_competencias[0] if top_competencias else 'SQL'}."
+                            "titulo": "Especialidade Principal: DBA / Administração de Dados",
+                            "termo_pesquisa": "DBA Database Administrator",
+                            "descricao": f"Oportunidades voltadas à gestão, performance e arquitetura de dados utilizando {top_competencias[0] if top_competencias else 'SQL'}."
                         },
                         {
-                            "titulo": f"Oportunidade Complementar: PostgreSQL & Dados",
-                            "termo_pesquisa": "PostgreSQL",
-                            "descricao": f"Vagas que exigem conhecimentos práticos em query tuning, arquitetura e rotinas associadas ao seu currículo."
+                            "titulo": "Especialidade Técnica: PostgreSQL & Infraestrutura",
+                            "termo_pesquisa": "PostgreSQL DBA",
+                            "descricao": f"Vagas focadas em otimização de consultas, rotinas de backup e ambiente relacional."
                         },
                         {
-                            "titulo": f"Oportunidade Ampla: Analista / Engenharia de Dados",
-                            "termo_pesquisa": "Analista de Dados",
-                            "descricao": f"Oportunidades de mercado para atuar com ecossistemas de dados, relatórios e infraestrutura."
+                            "titulo": "Especialidade Ampla: Analista / Engenharia de Dados",
+                            "termo_pesquisa": "Analista de Dados Brasil",
+                            "descricao": f"Oportunidades de mercado abrangentes para atuação com ecossistemas de dados corporativos."
                         }
                     ]
                     
@@ -310,21 +308,26 @@ else:
                         
                         termo_url = vaga["termo_pesquisa"].replace(" ", "%20")
                         
-                        # Link 1: Publicações (Feed com filtro de vagas e últimas 24h)
-                        link_posts = f"https://www.linkedin.com/search/results/content/?keywords={termo_url}&origin=FACETED_SEARCH&geoUrn=%5B%22106057199%22%5D&contentType=%22jobs%22&sortBy=%22date_posted%22&datePosted=%22past-24h%22"
-                        
-                        # Link 2: Aba Oficial de Vagas do LinkedIn (Jobs)
+                        # Links LinkedIn
+                        link_posts = f"https://www.linkedin.com/search/results/content/?keywords={termo_url.split()[0]}&origin=FACETED_SEARCH&geoUrn=%5B%22106057199%22%5D&contentType=%22jobs%22&sortBy=%22date_posted%22&datePosted=%22past-24h%22"
                         link_jobs = f"https://www.linkedin.com/jobs/search/?keywords={termo_url}&location=Brasil&f_TPR=r86400&sortBy=DD"
                         
-                        with st.expander(f"{cor_badge} {vaga['titulo']} | Compatibilidade: {score}%"):
+                        # Links Mercado Externo (Google Jobs & Glassdoor)
+                        link_google_jobs = f"https://www.google.com/search?q={termo_url}+vagas+brasil&ibp=htl;jobs"
+                        link_glassdoor = f"https://www.glassdoor.com.br/Vagas/{termo_url}-vagas-SRCH_KO0,15.htm"
+                        
+                        with st.expander(f"{cor_badge} {vaga['titulo']} | Compatibilidade com o seu CV: {score}%"):
                             st.write(f"**Descrição da Área:** {vaga['descricao']}")
                             st.write(f"🔹 **Competências alinhadas:** {', '.join(comuns[:6]) if comuns else 'Alinhamento geral detetado'}")
                             st.markdown("---")
+                            
                             c1, c2 = st.columns(2)
                             with c1:
-                                st.markdown(f"📢 **[🔍 Ver Publicações de Recrutadores]({link_posts})**", unsafe_allow_html=True)
+                                st.markdown(f"📢 **[🔍 Ver Publicações no LinkedIn]({link_posts})**", unsafe_allow_html=True)
+                                st.markdown(f"💼 **[🏢 Ver Vagas Oficiais (LinkedIn Jobs)]({link_jobs})**", unsafe_allow_html=True)
                             with c2:
-                                st.markdown(f"💼 **[🏢 Ver Vagas Oficiais (Jobs)]({link_jobs})**", unsafe_allow_html=True)
+                                st.markdown(f"🌐 **[🌍 Pesquisar no Google Jobs (Mercado Geral)]({link_google_jobs})**", unsafe_allow_html=True)
+                                st.markdown(f"⭐ **[🏢 Pesquisar no Glassdoor]({link_glassdoor})**", unsafe_allow_html=True)
 
     elif menu == "🎯 Gestão de Candidaturas":
         st.title("🎯 Gestão de Candidaturas")
